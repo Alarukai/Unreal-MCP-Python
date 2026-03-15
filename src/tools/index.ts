@@ -12,8 +12,13 @@ import { registerSequencerTools } from "./sequencer.js";
 import { registerSourceControlTools } from "./source-control.js";
 import { registerTestingTools } from "./testing.js";
 import { registerAnimationTools } from "./animation.js";
+import { registerEditorUtilsTools } from "./editor-utils.js";
+import { registerPluginTools } from "./plugin.js";
+import { registerProfilingTools } from "./profiling.js";
+import { registerRemoteControlPresetsTools } from "./remote-control-presets.js";
+import { registerWorldPartitionTools } from "./world-partition.js";
 
-// Tool registration functions keyed by module name
+// All 16 tool modules registered
 const MODULE_REGISTRARS: Record<
 	string,
 	(server: McpServer, manager: ConnectionManager, config: UnrealMcpConfig) => void
@@ -29,12 +34,11 @@ const MODULE_REGISTRARS: Record<
 	niagara: registerNiagaraTools,
 	testing: registerTestingTools,
 	"source-control": registerSourceControlTools,
-	// Phase 5 modules:
-	// profiling: registerProfilingTools,
-	// "world-partition": registerWorldPartitionTools,
-	// "editor-utils": registerEditorUtilsTools,
-	// "remote-control-presets": registerRemoteControlPresetsTools,
-	// plugin: registerPluginTools,
+	profiling: registerProfilingTools,
+	"world-partition": registerWorldPartitionTools,
+	"editor-utils": registerEditorUtilsTools,
+	"remote-control-presets": registerRemoteControlPresetsTools,
+	plugin: registerPluginTools,
 };
 
 /**
