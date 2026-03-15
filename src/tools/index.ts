@@ -2,8 +2,12 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ConnectionManager } from "../transports/connection-manager.js";
 import type { UnrealMcpConfig } from "../types.js";
 import { registerActorTools } from "./actor.js";
+import { registerAssetTools } from "./asset.js";
+import { registerBlueprintTools } from "./blueprint.js";
 import { registerBuildTools } from "./build.js";
 import { registerConsoleTools } from "./console.js";
+import { registerMaterialTools } from "./material.js";
+import { registerSequencerTools } from "./sequencer.js";
 
 // Tool registration functions keyed by module name
 const MODULE_REGISTRARS: Record<
@@ -12,12 +16,12 @@ const MODULE_REGISTRARS: Record<
 > = {
 	console: registerConsoleTools,
 	actor: registerActorTools,
+	asset: registerAssetTools,
 	build: registerBuildTools,
-	// Phase 2+ modules will be added here as implemented:
-	// asset: registerAssetTools,
-	// blueprint: registerBlueprintTools,
-	// material: registerMaterialTools,
-	// sequencer: registerSequencerTools,
+	blueprint: registerBlueprintTools,
+	material: registerMaterialTools,
+	sequencer: registerSequencerTools,
+	// Phase 4+ modules will be added here as implemented:
 	// animation: registerAnimationTools,
 	// niagara: registerNiagaraTools,
 	// testing: registerTestingTools,
