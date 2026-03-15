@@ -7,7 +7,11 @@ import { registerBlueprintTools } from "./blueprint.js";
 import { registerBuildTools } from "./build.js";
 import { registerConsoleTools } from "./console.js";
 import { registerMaterialTools } from "./material.js";
+import { registerNiagaraTools } from "./niagara.js";
 import { registerSequencerTools } from "./sequencer.js";
+import { registerSourceControlTools } from "./source-control.js";
+import { registerTestingTools } from "./testing.js";
+import { registerAnimationTools } from "./animation.js";
 
 // Tool registration functions keyed by module name
 const MODULE_REGISTRARS: Record<
@@ -21,11 +25,11 @@ const MODULE_REGISTRARS: Record<
 	blueprint: registerBlueprintTools,
 	material: registerMaterialTools,
 	sequencer: registerSequencerTools,
-	// Phase 4+ modules will be added here as implemented:
-	// animation: registerAnimationTools,
-	// niagara: registerNiagaraTools,
-	// testing: registerTestingTools,
-	// "source-control": registerSourceControlTools,
+	animation: registerAnimationTools,
+	niagara: registerNiagaraTools,
+	testing: registerTestingTools,
+	"source-control": registerSourceControlTools,
+	// Phase 5 modules:
 	// profiling: registerProfilingTools,
 	// "world-partition": registerWorldPartitionTools,
 	// "editor-utils": registerEditorUtilsTools,
