@@ -52,7 +52,7 @@ material = unreal.EditorAssetLibrary.load_asset('{{material_path}}')
 if not material:
     print(json.dumps({"error": "Material not found: {{material_path}}"}))
 else:
-    actors = unreal.EditorActorSubsystem().get_all_level_actors()
+    actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
     for a in actors:
         if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
             comps = a.get_components_by_class(unreal.MeshComponent)
@@ -133,7 +133,7 @@ if material:
         if e.get_name() == '{{to_expression_name}}':
             to_expr = e
     if from_expr and to_expr:
-        success = mel.connect_material_expressions(from_expr, '{{from_output_index}}', to_expr, '{{to_input_index}}')
+        success = mel.connect_material_expressions(from_expr, '', to_expr, '')
         print(json.dumps({"success": success}))
     else:
         print(json.dumps({"error": "Expression(s) not found", "available": [e.get_name() for e in expressions]}))
@@ -176,7 +176,7 @@ if material:
             break
     if expr:
         prop = getattr(unreal.MaterialProperty, '${material_property}')
-        success = mel.connect_material_property(expr, '${output_index}', prop)
+        success = mel.connect_material_property(expr, '', prop)
         print(json.dumps({"success": success}))
     else:
         print(json.dumps({"error": "Expression not found: {{expression_name}}"}))

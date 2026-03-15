@@ -101,6 +101,6 @@ export class ConnectionManager {
 	}
 
 	async shutdown(): Promise<void> {
-		// Transports are stateless (per-request connections), nothing to close
+		await this.python.disconnect();
 	}
 }

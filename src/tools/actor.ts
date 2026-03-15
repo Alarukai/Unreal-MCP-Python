@@ -26,7 +26,7 @@ export function registerActorTools(
 			manager.requireEditor();
 			const script = `import unreal
 import json
-actors = unreal.EditorActorSubsystem().get_all_level_actors()
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
 results = []
 for a in actors:
     name = a.get_name()
@@ -74,8 +74,8 @@ import json
 loc = unreal.Vector(${location.x}, ${location.y}, ${location.z})
 rot = unreal.Rotator(${rotation.pitch}, ${rotation.yaw}, ${rotation.roll})
 actor_class = unreal.EditorAssetLibrary.load_blueprint_class('/Script/Engine.${actor_class}') if not hasattr(unreal, '${actor_class}') else getattr(unreal, '${actor_class}')
-subsys = unreal.EditorActorSubsystem()
-actor = subsys.spawn_actor_from_class(actor_class, loc, rot)
+subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+actor = unreal.EditorLevelLibrary.spawn_actor_from_class(actor_class, loc, rot)
 if actor:
     ${scaleStr}
     ${labelStr}
@@ -98,12 +98,12 @@ else:
 			const script = inlineScript(
 				`import unreal
 import json
-subsys = unreal.EditorActorSubsystem()
+subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 actors = subsys.get_all_level_actors()
 deleted = False
 for a in actors:
     if a.get_name() == '{{name}}' or a.get_actor_label() == '{{name}}':
-        a.destroy_actor()
+        unreal.get_editor_subsystem(unreal.EditorActorSubsystem).destroy_actor(a)
         deleted = True
         break
 print(json.dumps({"deleted": deleted, "name": "{{name}}"}))`,
@@ -125,7 +125,7 @@ print(json.dumps({"deleted": deleted, "name": "{{name}}"}))`,
 			const script = inlineScript(
 				`import unreal
 import json
-subsys = unreal.EditorActorSubsystem()
+subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 actors = subsys.get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{name}}' or a.get_actor_label() == '{{name}}':
@@ -169,7 +169,7 @@ else:
 			const lines = [
 				"import unreal",
 				"import json",
-				"subsys = unreal.EditorActorSubsystem()",
+				"subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)",
 				"actors = subsys.get_all_level_actors()",
 				"found = False",
 				"for a in actors:",
@@ -233,7 +233,7 @@ else:
 			const script = inlineScript(
 				`import unreal
 import json
-subsys = unreal.EditorActorSubsystem()
+subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 actors = subsys.get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{name}}' or a.get_actor_label() == '{{name}}':
@@ -262,7 +262,7 @@ else:
 			const script = `import unreal
 import json
 target_names = [${nameList}]
-subsys = unreal.EditorActorSubsystem()
+subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 all_actors = subsys.get_all_level_actors()
 to_select = []
 for a in all_actors:
@@ -294,7 +294,7 @@ print(json.dumps({"selected": len(to_select)}))`;
 			const script = `import unreal
 import json
 target_names = [${nameList}]
-subsys = unreal.EditorActorSubsystem()
+subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 all_actors = subsys.get_all_level_actors()
 duplicated = []
 for a in all_actors:
@@ -324,7 +324,7 @@ print(json.dumps({"duplicated": duplicated}))`;
 			const script = inlineScript(
 				`import unreal
 import json
-subsys = unreal.EditorActorSubsystem()
+subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 actors = subsys.get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{name}}' or a.get_actor_label() == '{{name}}':

@@ -1,4 +1,4 @@
-import { createConnection, type Socket } from "node:net";
+import { RemoteExecution } from "unreal-remote-execution";
 import { PythonExecutionError, TimeoutError, UnrealMcpError } from "../utils/errors.js";
 
 export interface PythonExecConfig {
@@ -9,42 +9,83 @@ export interface PythonExecConfig {
 
 /**
  * Client for Unreal Engine's built-in Python Remote Execution protocol.
- * Default port 6776. No custom plugin required — just enable the
- * "Python Editor Script Plugin" in UE.
+ * Uses the `unreal-remote-execution` package which implements the full protocol:
+ * - UDP multicast discovery on 239.0.0.1:6766
+ * - Inverted TCP model (we are the server, UE connects to us)
+ * - Proper message framing with magic "ue_py" and UUIDs
  *
- * Protocol: Send Python code as UTF-8 over TCP, receive output back.
- * The UE Python Remote Execution protocol uses a simple framed message format.
+ * Requires "Python Editor Script Plugin" enabled in UE with
+ * "Enable Remote Execution" checked in its settings.
  */
 export class PythonExecClient {
-	private host: string;
-	private port: number;
+	private remote: RemoteExecution;
 	private timeout: number;
+	private _started = false;
+	private _commandReady = false;
 
 	constructor(config: PythonExecConfig) {
-		this.host = config.host;
-		this.port = config.port;
+		this.remote = new RemoteExecution();
 		this.timeout = config.timeout;
 	}
 
 	async isAvailable(): Promise<boolean> {
 		try {
-			// Try to open and immediately close a TCP connection
-			await new Promise<void>((resolve, reject) => {
-				const socket = createConnection({ host: this.host, port: this.port }, () => {
-					socket.destroy();
-					resolve();
-				});
-				socket.setTimeout(3000);
-				socket.on("timeout", () => {
-					socket.destroy();
-					reject(new Error("timeout"));
-				});
-				socket.on("error", reject);
-			});
-			return true;
+			if (!this._started) {
+				await this.ensureStarted();
+			}
+			return this.remote.remoteNodes.length > 0;
 		} catch {
 			return false;
 		}
+	}
+
+	private async ensureStarted(): Promise<void> {
+		if (this._started) return;
+
+		try {
+			await this.remote.start();
+			this._started = true;
+
+			// Wait for UE node discovery via UDP multicast
+			await new Promise<void>((resolve) => {
+				const maxWait = 5000;
+				const interval = 500;
+				let elapsed = 0;
+
+				const check = () => {
+					if (this.remote.remoteNodes.length > 0 || elapsed >= maxWait) {
+						resolve();
+						return;
+					}
+					elapsed += interval;
+					setTimeout(check, interval);
+				};
+				check();
+			});
+		} catch (err) {
+			this._started = false;
+			throw new UnrealMcpError(
+				`Failed to start Python Remote Execution: ${err}`,
+				"PYTHON_CONNECTION_FAILED",
+			);
+		}
+	}
+
+	private async ensureCommandConnection(): Promise<void> {
+		if (this._commandReady && this.remote.hasCommandConnection()) return;
+
+		await this.ensureStarted();
+
+		const nodes = this.remote.remoteNodes;
+		if (nodes.length === 0) {
+			throw new UnrealMcpError(
+				"No Unreal Editor nodes found. Make sure the editor is running with Python Remote Execution enabled.",
+				"NO_UE_NODES",
+			);
+		}
+
+		await this.remote.openCommandConnection(nodes[0]);
+		this._commandReady = true;
 	}
 
 	/**
@@ -52,138 +93,70 @@ export class PythonExecClient {
 	 * Returns the captured stdout output.
 	 */
 	async execute(pythonCode: string): Promise<string> {
-		return new Promise<string>((resolve, reject) => {
-			const socket = createConnection({ host: this.host, port: this.port });
-			const chunks: Buffer[] = [];
-			let resolved = false;
+		await this.ensureCommandConnection();
 
-			const timer = setTimeout(() => {
-				if (!resolved) {
-					resolved = true;
-					socket.destroy();
-					reject(new TimeoutError("Python execution", this.timeout));
-				}
-			}, this.timeout);
+		try {
+			const result = await Promise.race([
+				this.remote.runCommand(pythonCode, true),
+				new Promise<never>((_, reject) =>
+					setTimeout(
+						() => reject(new TimeoutError("Python execution", this.timeout)),
+						this.timeout,
+					),
+				),
+			]);
 
-			socket.on("connect", () => {
-				// Send the command using UE's remote execution protocol
-				// Format: the code is wrapped in a protocol message
-				const message = this.buildMessage(pythonCode);
-				socket.write(message);
-			});
+			if (!result.success) {
+				const errorOutput = result.output
+					.filter((o: { type: string }) => o.type === "Error")
+					.map((o: { output: string }) => o.output)
+					.join("\n");
+				const errorMsg = errorOutput || result.result || "Unknown Python execution error";
+				throw new PythonExecutionError(errorMsg, JSON.stringify(result));
+			}
 
-			socket.on("data", (data) => {
-				chunks.push(data);
-			});
+			// Collect stdout (Info-type output)
+			const stdout = result.output
+				.filter((o: { type: string }) => o.type === "Info")
+				.map((o: { output: string }) => o.output)
+				.join("")
+				.trim();
 
-			socket.on("end", () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timer);
-					const response = Buffer.concat(chunks).toString("utf-8");
-					const parsed = this.parseResponse(response);
-					if (parsed.error) {
-						reject(new PythonExecutionError(parsed.error, response));
-					} else {
-						resolve(parsed.output);
-					}
-				}
-			});
-
-			socket.on("error", (err) => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timer);
-					reject(
-						new UnrealMcpError(
-							`Python Remote Execution connection failed: ${err.message}`,
-							"PYTHON_CONNECTION_FAILED",
-						),
-					);
-				}
-			});
-
-			socket.on("timeout", () => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timer);
-					socket.destroy();
-					reject(new TimeoutError("Python execution", this.timeout));
-				}
-			});
-
-			socket.setTimeout(this.timeout);
-		});
+			return stdout || result.result || "";
+		} catch (error) {
+			if (error instanceof UnrealMcpError) throw error;
+			// Connection may have dropped — reset and let next call reconnect
+			this._commandReady = false;
+			throw new PythonExecutionError(
+				`Python execution failed: ${error}`,
+				String(error),
+			);
+		}
 	}
 
 	/**
-	 * Execute a Python script file (already rendered via template engine).
+	 * Execute a Python script (already rendered via template engine).
 	 */
 	async executeScript(renderedScript: string): Promise<string> {
 		return this.execute(renderedScript);
 	}
 
-	/**
-	 * Build the protocol message for UE Python Remote Execution.
-	 *
-	 * The protocol sends JSON-encoded command messages over TCP.
-	 * Format based on the unreal-remote-execution protocol:
-	 * - Message type: "command"
-	 * - Command: the Python code to execute
-	 */
-	private buildMessage(code: string): Buffer {
-		const message = JSON.stringify({
-			type: "command",
-			body: code,
-		});
-
-		// UE Python Remote Execution uses length-prefixed messages
-		// 4-byte little-endian length prefix + UTF-8 message body
-		const messageBuffer = Buffer.from(message, "utf-8");
-		const lengthBuffer = Buffer.alloc(4);
-		lengthBuffer.writeUInt32LE(messageBuffer.length, 0);
-
-		return Buffer.concat([lengthBuffer, messageBuffer]);
-	}
-
-	/**
-	 * Parse the response from UE Python Remote Execution.
-	 */
-	private parseResponse(raw: string): { output: string; error?: string } {
-		// Try to extract the output from the raw response
-		// The response may be length-prefixed JSON or raw text depending on UE version
-
-		// Skip any length prefix bytes
-		let jsonStr = raw;
-		if (raw.length > 4) {
-			// Try parsing from position 4 (after length prefix)
-			const possibleJson = raw.slice(4);
+	async disconnect(): Promise<void> {
+		if (this._commandReady) {
 			try {
-				const parsed = JSON.parse(possibleJson);
-				if (typeof parsed === "object" && parsed !== null) {
-					if (parsed.success === false || parsed.error) {
-						return { output: "", error: parsed.error || parsed.output || "Unknown error" };
-					}
-					return { output: parsed.output || parsed.result || JSON.stringify(parsed) };
-				}
+				this.remote.closeCommandConnection();
 			} catch {
-				// Not JSON from position 4, try full string
+				// Ignore
 			}
+			this._commandReady = false;
 		}
-
-		// Try parsing the full string as JSON
-		try {
-			const parsed = JSON.parse(jsonStr);
-			if (typeof parsed === "object" && parsed !== null) {
-				if (parsed.success === false || parsed.error) {
-					return { output: "", error: parsed.error || parsed.output || "Unknown error" };
-				}
-				return { output: parsed.output || parsed.result || JSON.stringify(parsed) };
+		if (this._started) {
+			try {
+				await this.remote.stop();
+			} catch {
+				// Ignore shutdown errors
 			}
-		} catch {
-			// Not JSON — return raw text as output
+			this._started = false;
 		}
-
-		return { output: raw };
 	}
 }

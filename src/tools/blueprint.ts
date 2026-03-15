@@ -137,7 +137,7 @@ import json
 bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
     unreal.BlueprintEditorLibrary.add_member_variable(bp, '{{variable_name}}', '${pinType}')
-    unreal.KismetSystemLibrary.compile_blueprint(bp)
+    unreal.BlueprintEditorLibrary.compile_blueprint(bp)
     print(json.dumps({"success": True, "variable": "{{variable_name}}", "type": "${variable_type}"}))
 else:
     print(json.dumps({"error": "Blueprint not found"}))`,
@@ -293,7 +293,7 @@ else:
 import json
 bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
-    unreal.KismetSystemLibrary.compile_blueprint(bp)
+    unreal.BlueprintEditorLibrary.compile_blueprint(bp)
     unreal.EditorAssetLibrary.save_asset('{{blueprint_path}}')
     print(json.dumps({"success": True, "compiled": "{{blueprint_path}}"}))
 else:
@@ -356,7 +356,7 @@ bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
     loc = unreal.Vector(${location.x}, ${location.y}, ${location.z})
     rot = unreal.Rotator(${rotation.pitch}, ${rotation.yaw}, ${rotation.roll})
-    subsys = unreal.EditorActorSubsystem()
+    subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     actor = subsys.spawn_actor_from_class(bp.generated_class, loc, rot)
     if actor:
         ${labelLine}

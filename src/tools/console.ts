@@ -28,7 +28,7 @@ export function registerConsoleTools(
 			manager.requireEditor();
 			// Execute console command via Python
 			const script = inlineScript(
-				`import unreal\nunreal.SystemLibrary.execute_console_command(unreal.EditorLevelLibrary.get_editor_world(), '{{command}}')`,
+				`import unreal\nunreal.SystemLibrary.execute_console_command(None, '{{command}}')`,
 				{ command },
 			);
 			const result = await manager.python.execute(script);
@@ -53,7 +53,7 @@ export function registerConsoleTools(
 				`import unreal
 import os
 path = os.path.join(unreal.Paths.screen_shot_dir(), '{{filename}}')
-unreal.AutomationLibrary.take_automation_screenshot(path)
+unreal.AutomationLibrary.take_high_res_screenshot(640, 520, path)
 print(path)`,
 				{ filename: fname },
 			);
@@ -70,7 +70,7 @@ print(path)`,
 			manager.requireEditor();
 			const script = `import unreal
 import json
-vp = unreal.UnrealEditorSubsystem().get_level_viewport_camera_info()
+vp = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_level_viewport_camera_info()
 if vp:
     loc, rot = vp
     result = {
@@ -118,7 +118,7 @@ else:
 			const script = `import unreal
 loc = ${locStr}
 rot = ${rotStr}
-subsys = unreal.UnrealEditorSubsystem()
+subsys = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
 if loc is not None and rot is not None:
     subsys.set_level_viewport_camera_info(loc, rot)
     print("Camera updated")

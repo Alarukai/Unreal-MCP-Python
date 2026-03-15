@@ -159,7 +159,7 @@ else:
 			manager.requireEditor();
 			const script = `import unreal
 import json
-success = unreal.SystemLibrary.execute_console_command(unreal.EditorLevelLibrary.get_editor_world(), 'transaction undo')
+success = unreal.SystemLibrary.execute_console_command(None, 'transaction undo')
 print(json.dumps({"undone": True}))`;
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
@@ -174,7 +174,7 @@ print(json.dumps({"undone": True}))`;
 			manager.requireEditor();
 			const script = `import unreal
 import json
-success = unreal.SystemLibrary.execute_console_command(unreal.EditorLevelLibrary.get_editor_world(), 'transaction redo')
+success = unreal.SystemLibrary.execute_console_command(None, 'transaction redo')
 print(json.dumps({"redone": True}))`;
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };

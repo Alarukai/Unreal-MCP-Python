@@ -56,7 +56,7 @@ else:
 import json
 system = unreal.EditorAssetLibrary.load_asset('{{system_path}}')
 if system:
-    actors = unreal.EditorActorSubsystem().get_all_level_actors()
+    actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
     target = None
     for a in actors:
         if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
@@ -95,7 +95,7 @@ else:
 			const script = inlineScript(
 				`import unreal
 import json
-actors = unreal.EditorActorSubsystem().get_all_level_actors()
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)
@@ -127,7 +127,7 @@ else:
 			const script = inlineScript(
 				`import unreal
 import json
-actors = unreal.EditorActorSubsystem().get_all_level_actors()
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)
@@ -159,7 +159,7 @@ else:
 			const script = inlineScript(
 				`import unreal
 import json
-actors = unreal.EditorActorSubsystem().get_all_level_actors()
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)
@@ -191,7 +191,7 @@ else:
 			const script = inlineScript(
 				`import unreal
 import json
-actors = unreal.EditorActorSubsystem().get_all_level_actors()
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)
@@ -221,7 +221,7 @@ else:
 			const script = inlineScript(
 				`import unreal
 import json
-actors = unreal.EditorActorSubsystem().get_all_level_actors()
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)
@@ -251,7 +251,7 @@ else:
 			const script = inlineScript(
 				`import unreal
 import json
-actors = unreal.EditorActorSubsystem().get_all_level_actors()
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)

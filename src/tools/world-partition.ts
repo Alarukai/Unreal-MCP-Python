@@ -19,7 +19,7 @@ export function registerWorldPartitionTools(
 import json
 world = unreal.EditorLevelLibrary.get_editor_world()
 subsys = unreal.WorldPartitionSubsystem()
-layers = unreal.DataLayerManager.get_data_layer_manager(world)
+layers = unreal.get_editor_subsystem(unreal.DataLayerEditorSubsystem)
 if layers:
     all_layers = layers.get_all_data_layers()
     result = []
@@ -50,7 +50,7 @@ else:
 				`import unreal
 import json
 world = unreal.EditorLevelLibrary.get_editor_world()
-manager = unreal.DataLayerManager.get_data_layer_manager(world)
+manager = unreal.get_editor_subsystem(unreal.DataLayerEditorSubsystem)
 if manager:
     layers = manager.get_all_data_layers()
     for layer in layers:
@@ -101,7 +101,7 @@ else:
 			const script = inlineScript(
 				`import unreal
 import json
-actors = unreal.EditorActorSubsystem().get_all_level_actors()
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
 for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comp = a.add_component_by_class(unreal.WorldPartitionStreamingSourceComponent, False, unreal.Transform(), False)

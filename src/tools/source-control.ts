@@ -22,7 +22,7 @@ export function registerSourceControlTools(
 import json
 results = []
 for path in [${pathList}]:
-    state = unreal.SourceControl.query_file_state(path)
+    state = unreal.SourceControl.query_file_state(path, True)
     results.append({
         "path": path,
         "is_source_controlled": state.is_source_controlled,
@@ -55,7 +55,7 @@ print(json.dumps(results, indent=2))`;
 import json
 results = []
 for path in [${pathList}]:
-    success = unreal.SourceControl.check_out(path)
+    success = unreal.SourceControl.check_out_file(path)
     results.append({"path": path, "checked_out": success})
 print(json.dumps(results, indent=2))`;
 			const result = await manager.python.execute(script);
@@ -78,7 +78,7 @@ print(json.dumps(results, indent=2))`;
 import json
 results = []
 for path in [${pathList}]:
-    success = unreal.SourceControl.check_in(path, '{{description}}')
+    success = unreal.SourceControl.check_in_files([path], '{{description}}')
     results.append({"path": path, "checked_in": success})
 print(json.dumps(results, indent=2))`,
 				{ description },
@@ -101,7 +101,7 @@ print(json.dumps(results, indent=2))`,
 import json
 results = []
 for path in [${pathList}]:
-    success = unreal.SourceControl.revert(path)
+    success = unreal.SourceControl.revert_file(path)
     results.append({"path": path, "reverted": success})
 print(json.dumps(results, indent=2))`;
 			const result = await manager.python.execute(script);
@@ -122,7 +122,7 @@ print(json.dumps(results, indent=2))`;
 import json
 results = []
 for path in [${pathList}]:
-    success = unreal.SourceControl.mark_for_add(path)
+    success = unreal.SourceControl.check_out_or_add_file(path)
     results.append({"path": path, "marked": success})
 print(json.dumps(results, indent=2))`;
 			const result = await manager.python.execute(script);

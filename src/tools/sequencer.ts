@@ -58,7 +58,7 @@ if seq:
         "bindings": [],
         "master_tracks": []
     }
-    for binding in movie_scene.get_bindings():
+    for binding in seq.get_bindings():
         b = {"name": binding.get_name(), "id": str(binding.get_id()), "tracks": []}
         for track in binding.get_tracks():
             t = {"name": track.get_name(), "class": track.get_class().get_name()}
@@ -90,7 +90,7 @@ else:
 import json
 seq = unreal.EditorAssetLibrary.load_asset('{{sequence_path}}')
 if seq:
-    actors = unreal.EditorActorSubsystem().get_all_level_actors()
+    actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
     target = None
     for a in actors:
         if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
@@ -98,7 +98,7 @@ if seq:
             break
     if target:
         movie_scene = seq.get_movie_scene()
-        binding = movie_scene.add_possessable(target)
+        binding = seq.add_possessable(target)
         print(json.dumps({"success": True, "binding_id": str(binding.get_id()), "actor": target.get_name()}))
     else:
         print(json.dumps({"error": "Actor not found: {{actor_name}}"}))
@@ -136,7 +136,7 @@ import json
 seq = unreal.EditorAssetLibrary.load_asset('{{sequence_path}}')
 if seq:
     movie_scene = seq.get_movie_scene()
-    for binding in movie_scene.get_bindings():
+    for binding in seq.get_bindings():
         if str(binding.get_id()) == '{{binding_id}}':
             track_class = getattr(unreal, '${track_type}')
             track = binding.add_track(track_class)
@@ -230,7 +230,7 @@ if seq:
     world = unreal.EditorLevelLibrary.get_editor_world()
     bindings = []
     movie_scene = seq.get_movie_scene()
-    for binding in movie_scene.get_bindings():
+    for binding in seq.get_bindings():
         bindings.append(binding)
     if bindings:
         export_options = unreal.FbxExportOption()

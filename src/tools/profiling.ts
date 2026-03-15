@@ -21,7 +21,7 @@ export function registerProfilingTools(
 			const script = inlineScript(
 				`import unreal
 import json
-unreal.SystemLibrary.execute_console_command(unreal.EditorLevelLibrary.get_editor_world(), 'trace.start {{channels}}')
+unreal.SystemLibrary.execute_console_command(None, 'trace.start {{channels}}')
 print(json.dumps({"started": True, "channels": "{{channels}}"}))`,
 				{ channels: channelStr },
 			);
@@ -38,7 +38,7 @@ print(json.dumps({"started": True, "channels": "{{channels}}"}))`,
 			manager.requireEditor();
 			const script = `import unreal
 import json
-unreal.SystemLibrary.execute_console_command(unreal.EditorLevelLibrary.get_editor_world(), 'trace.stop')
+unreal.SystemLibrary.execute_console_command(None, 'trace.stop')
 print(json.dumps({"stopped": True}))`;
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
@@ -56,7 +56,7 @@ print(json.dumps({"stopped": True}))`;
 			const script = inlineScript(
 				`import unreal
 import json
-unreal.SystemLibrary.execute_console_command(unreal.EditorLevelLibrary.get_editor_world(), 'stat {{stat}}')
+unreal.SystemLibrary.execute_console_command(None, 'stat {{stat}}')
 print(json.dumps({"executed": "stat {{stat}}"}))`,
 				{ stat },
 			);
@@ -77,7 +77,7 @@ print(json.dumps({"executed": "stat {{stat}}"}))`,
 			const script = inlineScript(
 				`import unreal
 import json
-unreal.SystemLibrary.execute_console_command(unreal.EditorLevelLibrary.get_editor_world(), '{{cmd}}')
+unreal.SystemLibrary.execute_console_command(None, '{{cmd}}')
 print(json.dumps({"started": True}))`,
 				{ cmd },
 			);
@@ -94,7 +94,7 @@ print(json.dumps({"started": True}))`,
 			manager.requireEditor();
 			const script = `import unreal
 import json
-unreal.SystemLibrary.execute_console_command(unreal.EditorLevelLibrary.get_editor_world(), 'csvprofile stop')
+unreal.SystemLibrary.execute_console_command(None, 'csvprofile stop')
 print(json.dumps({"stopped": True, "hint": "CSV output saved to Saved/Profiling/CSV/"}))`;
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
