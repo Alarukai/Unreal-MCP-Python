@@ -31,7 +31,7 @@ import json
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
 path = '{{directory}}'
 recursive = {{recursive}}
-assets = registry.get_assets_by_path(path, recursive)
+assets = registry.get_assets_by_path(path, recursive) or []
 class_filter = '{{class_filter}}'
 results = []
 for a in assets:
@@ -69,7 +69,7 @@ filt = unreal.ARFilter()
 class_filter = '{{class_filter}}'
 if class_filter:
     filt.class_paths = [unreal.TopLevelAssetPath('/Script/Engine', class_filter)]
-assets = registry.get_assets(filt)
+assets = registry.get_assets(filt) or []
 query = '{{query}}'.lower()
 results = []
 for a in assets:
@@ -286,7 +286,7 @@ print(json.dumps({"success": success, "output": '{{output_path}}'}))`,
 import json
 subsys = unreal.get_editor_subsystem(unreal.EditorValidatorSubsystem)
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
-assets = registry.get_assets_by_path('{{directory}}', True)
+assets = registry.get_assets_by_path('{{directory}}', True) or []
 asset_list = [a for a in assets[:50]]
 results = subsys.validate_assets_with_settings(
     asset_list,
