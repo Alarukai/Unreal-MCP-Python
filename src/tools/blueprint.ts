@@ -346,13 +346,24 @@ bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
     result = {
         "name": bp.get_name(),
-        "parent_class": bp.parent_class.get_name() if bp.parent_class else None,
+        "parent_class": bp.get_editor_property('parent_class').get_name() if bp.get_editor_property('parent_class') else None,
         "path": bp.get_path_name(),
     }
     # Get variables
-    gen_class = bp.generated_class
-    if gen_class:
-        result["generated_class"] = gen_class.get_name()
+    try:
+        gen_class = bp.generated_class
+        if gen_class:
+            result["generated_class"] = gen_class.get_name()
+    except:
+        pass
+    # Get components from SCS
+    try:
+        scs = bp.simple_construction_script
+        if scs:
+            nodes = scs.get_all_nodes()
+            result["components"] = [{"name": n.get_variable_name(), "class": n.component_class.get_name() if n.component_class else "Unknown"} for n in nodes]
+    except:
+        pass
     print(json.dumps(result, indent=2))
 else:
     print(json.dumps({"error": "Blueprint not found: {{blueprint_path}}"}))`,
@@ -447,19 +458,27 @@ else:
 		},
 	);
 
-	// NOTE: set_blueprint_property intentionally passes property_value as a raw Python expression.
-	// This allows values like True, 42.0, unreal.Vector(1,2,3), etc.
-	// The same trust model applies as execute_python — the MCP caller is trusted.
+	// NOTE: set_blueprint_property passes property_value as a Python expression.
+	// Plain strings/paths are auto-quoted. Python expressions like True, 42.0,
+	// unreal.Vector(1,2,3) are passed through as-is.
 	server.tool(
 		"set_blueprint_property",
 		"Set a default property value on a Blueprint's CDO (Class Default Object).",
 		{
 			blueprint_path: z.string().describe("Blueprint asset path"),
 			property_name: z.string().describe("Property name"),
-			property_value: z.string().describe("Property value as string"),
+			property_value: z
+				.string()
+				.describe(
+					"Property value — Python expressions (True, 42.0, unreal.Vector(1,2,3)) or plain strings/asset paths",
+				),
 		},
 		async ({ blueprint_path, property_name, property_value }) => {
 			manager.requireEditor();
+			// Detect if value looks like a Python expression or a plain string/path
+			const isPythonExpr = /^(True|False|None|\d|unreal\.|[\[({"'])/.test(property_value.trim());
+			const pyValue = isPythonExpr ? property_value : `'{{property_value}}'`;
+
 			const script = inlineScript(
 				`import unreal
 import json
@@ -468,7 +487,7 @@ if bp and bp.generated_class:
     cdo = unreal.get_default_object(bp.generated_class)
     if cdo:
         try:
-            cdo.set_editor_property('{{property_name}}', {{property_value}})
+            cdo.set_editor_property('{{property_name}}', ${pyValue})
             print(json.dumps({"success": True}))
         except Exception as e:
             print(json.dumps({"error": str(e)}))
