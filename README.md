@@ -170,6 +170,12 @@ Place `.unrealmcp.json` in your project directory or home directory:
 
 1. Edit > Plugins > enable **Remote Control API**
 2. Restart the editor
+3. Edit > Project Settings > Plugins > **Remote Control** > **Server**:
+   - Check **Restrict Server Access** — this sounds restrictive but actually *enables* the sub-options below (unchecked = features hidden/off)
+   - Check **Enable Remote Python Execution**
+   - Check **Allow Console Command Remote Execution**
+   - Allowed Origins: leave blank or add `127.0.0.1`
+   - These take effect immediately, no restart needed
 
 ### Optional (for Blueprint graph tools)
 
