@@ -458,43 +458,87 @@ else:
 		},
 	);
 
-	// NOTE: set_blueprint_property passes property_value as a Python expression.
-	// Plain strings/paths are auto-quoted. Python expressions like True, 42.0,
-	// unreal.Vector(1,2,3) are passed through as-is.
 	server.tool(
 		"set_blueprint_property",
-		"Set a default property value on a Blueprint's CDO (Class Default Object).",
+		"Set a default property value on a Blueprint's CDO (Class Default Object). For component properties, use a dot path like 'ComponentName.PropertyName'.",
 		{
 			blueprint_path: z.string().describe("Blueprint asset path"),
-			property_name: z.string().describe("Property name"),
+			property_name: z
+				.string()
+				.describe("Property name, or ComponentName.PropertyName for component sub-properties"),
 			property_value: z
 				.string()
 				.describe(
-					"Property value — Python expressions (True, 42.0, unreal.Vector(1,2,3)) or plain strings/asset paths",
+					"Property value — asset paths (/Game/...), Python expressions (True, 42.0), or plain strings",
 				),
 		},
 		async ({ blueprint_path, property_name, property_value }) => {
 			manager.requireEditor();
-			// Detect if value looks like a Python expression or a plain string/path
-			const isPythonExpr = /^(True|False|None|\d|unreal\.|[\[({"'])/.test(property_value.trim());
-			const pyValue = isPythonExpr ? property_value : `'{{property_value}}'`;
-
 			const script = inlineScript(
 				`import unreal
 import json
+
 bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
-if bp and bp.generated_class:
-    cdo = unreal.get_default_object(bp.generated_class)
-    if cdo:
-        try:
-            cdo.set_editor_property('{{property_name}}', ${pyValue})
-            print(json.dumps({"success": True}))
-        except Exception as e:
-            print(json.dumps({"error": str(e)}))
-    else:
-        print(json.dumps({"error": "Could not get CDO"}))
+if not bp:
+    print(json.dumps({"error": "Blueprint not found: {{blueprint_path}}"}))
 else:
-    print(json.dumps({"error": "Blueprint not found"}))`,
+    prop_name = '{{property_name}}'
+    raw_value = '{{property_value}}'
+
+    # Auto-load asset paths
+    value = raw_value
+    if raw_value.startswith('/Game/') or raw_value.startswith('/Script/') or raw_value.startswith('/Engine/'):
+        loaded = unreal.EditorAssetLibrary.load_asset(raw_value)
+        if loaded:
+            value = loaded
+        else:
+            print(json.dumps({"error": "Could not load asset: " + raw_value}))
+            raise SystemExit()
+    elif raw_value in ('True', 'False'):
+        value = raw_value == 'True'
+    elif raw_value == 'None':
+        value = None
+    else:
+        try:
+            value = float(raw_value) if '.' in raw_value else int(raw_value)
+        except ValueError:
+            value = raw_value
+
+    # Handle dot-path for component properties (e.g., BodyMesh.StaticMesh)
+    if '.' in prop_name:
+        comp_name, sub_prop = prop_name.split('.', 1)
+        scs = bp.simple_construction_script
+        if scs:
+            for node in scs.get_all_nodes():
+                tmpl = node.component_template
+                if tmpl and (tmpl.get_name() == comp_name or str(node.get_variable_name()) == comp_name):
+                    try:
+                        # For StaticMesh on StaticMeshComponent, use set_static_mesh
+                        if sub_prop == 'StaticMesh' and hasattr(tmpl, 'set_static_mesh'):
+                            tmpl.set_static_mesh(value)
+                        else:
+                            tmpl.set_editor_property(sub_prop, value)
+                        unreal.EditorAssetLibrary.save_asset('{{blueprint_path}}')
+                        print(json.dumps({"success": True, "component": comp_name, "property": sub_prop}))
+                    except Exception as e:
+                        print(json.dumps({"error": str(e)}))
+                    break
+            else:
+                print(json.dumps({"error": "Component not found: " + comp_name}))
+        else:
+            print(json.dumps({"error": "Blueprint has no SCS"}))
+    else:
+        # Top-level CDO property
+        try:
+            gen_class = bp.generated_class
+            cdo = unreal.get_default_object(gen_class) if gen_class else None
+            if cdo:
+                cdo.set_editor_property(prop_name, value)
+                print(json.dumps({"success": True}))
+            else:
+                print(json.dumps({"error": "Could not get CDO"}))
+        except Exception as e:
+            print(json.dumps({"error": str(e)}))`,
 				{ blueprint_path, property_name, property_value },
 			);
 			const result = await manager.runPython(script);
