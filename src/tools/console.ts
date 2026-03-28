@@ -69,16 +69,27 @@ print(path)`,
 			manager.requireEditor();
 			const script = `import unreal
 import json
-vp = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_level_viewport_camera_info()
-if vp:
-    success, loc, rot = vp
-    result = {
-        "location": {"x": loc.x, "y": loc.y, "z": loc.z},
-        "rotation": {"pitch": rot.pitch, "yaw": rot.yaw, "roll": rot.roll}
-    }
-    print(json.dumps(result))
-else:
-    print(json.dumps({"error": "Could not get viewport camera"}))`;
+try:
+    subsys = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
+    vp = subsys.get_level_viewport_camera_info()
+    if vp:
+        # Handle both (bool, loc, rot) and (loc, rot) return types across UE versions
+        if len(vp) == 3:
+            success, loc, rot = vp
+        elif len(vp) == 2:
+            loc, rot = vp
+        else:
+            print(json.dumps({"error": "Unexpected return from get_level_viewport_camera_info"}))
+            raise SystemExit()
+        result = {
+            "location": {"x": loc.x, "y": loc.y, "z": loc.z},
+            "rotation": {"pitch": rot.pitch, "yaw": rot.yaw, "roll": rot.roll}
+        }
+        print(json.dumps(result))
+    else:
+        print(json.dumps({"error": "Could not get viewport camera"}))
+except Exception as e:
+    print(json.dumps({"error": str(e)}))`;
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
