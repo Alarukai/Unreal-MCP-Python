@@ -155,12 +155,16 @@ Place `.unrealmcp.json` in your project directory or home directory:
 
 1. Edit > Plugins > enable **Python Editor Script Plugin**
 2. Restart the editor
-3. Edit > Project Settings > Plugins > **Python** > scroll to **Remote Execution** section > check **Enable Remote Execution**
-   - This is a separate setting from enabling the plugin — the plugin can be enabled but remote execution still off
-   - Verify Multicast Group Endpoint is `239.0.0.1:6766` (the default)
+3. Edit > Project Settings > Plugins > **Python** > scroll to **Remote Execution** section:
+   - Check **Enable Remote Execution**
+   - **UE 5.3+ IMPORTANT:** Change **Multicast Bind Address** from `127.0.0.1` to `0.0.0.0` — Epic changed the default in 5.3 and it breaks external tools
+   - Verify Multicast Group Endpoint is `239.0.0.1:6766`
 4. Restart the editor again
 
-**Still getting "No Unreal Editor nodes found"?** Windows Firewall may be blocking UDP multicast discovery. Allow UDP port 6766 and TCP port 6776, or temporarily disable the firewall to test.
+**Still getting "No Unreal Editor nodes found"?**
+- **VPN/Tailscale users:** Tailscale's virtual network adapter can hijack multicast. Try temporarily disabling Tailscale, or disable the Tailscale network adapter in Windows Network Connections.
+- **Firewall:** Allow UDP port 6766 and TCP port 6776, or temporarily disable Windows Firewall to test.
+- **Multiple adapters:** WSL, Hyper-V, and VPN adapters can all cause multicast to bind to the wrong interface. Disabling unused adapters helps.
 
 ### Optional (for Remote Control tools)
 
