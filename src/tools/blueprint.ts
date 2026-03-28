@@ -86,7 +86,7 @@ if bp:
     comp_class = getattr(unreal, '{{component_class}}', None)
     if comp_class:
         # Use SCS (Simple Construction Script) to add component
-        scs = bp.simple_construction_script
+        scs = getattr(bp, 'simple_construction_script', None) or bp.get_editor_property('SimpleConstructionScript')
         if scs:
             node = scs.create_node(comp_class, '{{cname}}')
             if node:
@@ -358,7 +358,7 @@ if bp:
     except:
         pass
     try:
-        scs = bp.simple_construction_script
+        scs = getattr(bp, 'simple_construction_script', None) or bp.get_editor_property('SimpleConstructionScript')
         if scs:
             nodes = scs.get_all_nodes()
             result["components"] = [{"name": str(n.get_variable_name()), "class": n.component_class.get_name() if n.component_class else "Unknown"} for n in nodes]
@@ -507,7 +507,7 @@ else:
     # Handle dot-path for component properties (e.g., BodyMesh.StaticMesh)
     if '.' in prop_name:
         comp_name, sub_prop = prop_name.split('.', 1)
-        scs = bp.simple_construction_script
+        scs = getattr(bp, 'simple_construction_script', None) or bp.get_editor_property('SimpleConstructionScript')
         if scs:
             for node in scs.get_all_nodes():
                 tmpl = node.component_template
