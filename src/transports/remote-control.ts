@@ -1,3 +1,6 @@
+import { readFileSync, unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { TimeoutError, UnrealMcpError } from "../utils/errors.js";
 
 export interface RemoteControlConfig {
@@ -146,57 +149,101 @@ export class RemoteControlClient {
 	 * Execute Python code via the Remote Control HTTP endpoint.
 	 * This provides a fallback when Python Remote Execution (UDP/TCP) is unavailable.
 	 *
-	 * Tries multiple approaches in order:
-	 * 1. PUT /remote/script/execute — dedicated RC Python endpoint (requires "Enable Remote Python Execution" in RC settings)
-	 * 2. PUT /remote/object/call with PythonScriptLibrary.ExecutePythonCommand
-	 * 3. Console command with `py` prefix (works but no stdout capture)
+	 * Since RC only returns the function's C++ return value (not Python stdout),
+	 * we wrap the user's code to capture stdout and write it to a temp file,
+	 * then read it back from Node.js (same machine).
 	 */
 	async executePython(code: string): Promise<string> {
-		// Approach 1: Dedicated RC Python endpoint (UE 5.x with Remote Python Execution enabled)
-		try {
-			const result = await this.rawRequest("/remote/script/execute", "PUT", {
-				Script: code,
-			});
-			return typeof result === "string" ? result : JSON.stringify(result);
-		} catch {
-			// Fall through
-		}
+		const outputFile = join(
+			tmpdir(),
+			`unreal_mcp_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`,
+		);
+		const outputFilePy = outputFile.replace(/\\/g, "\\\\");
 
-		// Approach 2: Call PythonScriptLibrary with various function names
-		for (const functionName of ["ExecutePythonCommand", "ExecutePythonScript", "ExecuteScript"]) {
+		// Wrap user code to capture stdout and write to temp file
+		const wrappedCode = `
+import sys, io
+_mcp_buf = io.StringIO()
+_mcp_old_stdout = sys.stdout
+sys.stdout = _mcp_buf
+try:
+    exec(${JSON.stringify(code)})
+except Exception as _mcp_err:
+    print(f"Error: {_mcp_err}")
+finally:
+    sys.stdout = _mcp_old_stdout
+with open("${outputFilePy}", "w", encoding="utf-8") as _mcp_f:
+    _mcp_f.write(_mcp_buf.getvalue())
+`;
+
+		// Try execution approaches in order
+		let executed = false;
+
+		// Approach 1: Dedicated RC Python endpoint
+		if (!executed) {
 			try {
-				const result = await this.rawRequest("/remote/object/call", "PUT", {
-					objectPath: "/Script/PythonScriptPlugin.Default__PythonScriptLibrary",
-					functionName,
-					parameters: { PythonCommand: code },
-				});
-				return typeof result === "string" ? result : JSON.stringify(result);
+				await this.rawRequest("/remote/script/execute", "PUT", { Script: wrappedCode });
+				executed = true;
 			} catch {
-				// Try next function name
+				// Fall through
 			}
 		}
 
-		// Approach 3: Use `py` console command prefix — works without special config
-		// but stdout goes to UE Output Log only, not returned to caller
+		// Approach 2: PythonScriptLibrary with various function names
+		if (!executed) {
+			for (const functionName of ["ExecutePythonCommand", "ExecutePythonScript"]) {
+				try {
+					await this.rawRequest("/remote/object/call", "PUT", {
+						objectPath: "/Script/PythonScriptPlugin.Default__PythonScriptLibrary",
+						functionName,
+						parameters: { PythonCommand: wrappedCode },
+					});
+					executed = true;
+					break;
+				} catch {
+					// Try next
+				}
+			}
+		}
+
+		// Approach 3: Console command with py prefix
+		if (!executed) {
+			try {
+				const singleLine = wrappedCode.replace(/\n/g, "\\n").replace(/"/g, '\\"');
+				await this.rawRequest("/remote/object/call", "PUT", {
+					objectPath: "/Script/Engine.Default__KismetSystemLibrary",
+					functionName: "ExecuteConsoleCommand",
+					parameters: {
+						WorldContextObject: "/Engine/Transient.World",
+						Command: `py exec("${singleLine}")`,
+					},
+				});
+				executed = true;
+			} catch (error) {
+				throw new UnrealMcpError(
+					`Failed to execute Python via Remote Control. Enable Python Remote Execution (Project Settings > Plugins > Python > Enable Remote Execution). Error: ${error}`,
+					"PYTHON_EXEC_FAILED",
+				);
+			}
+		}
+
+		// Read captured output from temp file
 		try {
-			const escapedCode = code.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
-			await this.rawRequest("/remote/object/call", "PUT", {
-				objectPath: "/Script/Engine.Default__KismetSystemLibrary",
-				functionName: "ExecuteConsoleCommand",
-				parameters: {
-					WorldContextObject: "/Engine/Transient.World",
-					Command: `py ${escapedCode}`,
-				},
-			});
+			// Small delay to let UE finish writing
+			await new Promise((resolve) => setTimeout(resolve, 200));
+			const output = readFileSync(outputFile, "utf-8");
+			try {
+				unlinkSync(outputFile);
+			} catch {
+				// Cleanup failure is fine
+			}
+			return output || "";
+		} catch {
+			// File wasn't created — execution likely failed silently
 			return JSON.stringify({
-				executed: true,
-				note: "Python executed via console command. Output is in the UE Output Log. For full stdout capture, enable Python Remote Execution in Project Settings > Plugins > Python.",
+				executed,
+				note: "Python executed but produced no output. Check UE Output Log for errors.",
 			});
-		} catch (error) {
-			throw new UnrealMcpError(
-				`Failed to execute Python via Remote Control. Enable Python Remote Execution (Project Settings > Plugins > Python > Enable Remote Execution). Error: ${error}`,
-				"PYTHON_EXEC_FAILED",
-			);
 		}
 	}
 
