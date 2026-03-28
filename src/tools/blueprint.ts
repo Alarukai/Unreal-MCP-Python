@@ -14,7 +14,10 @@ export function registerBlueprintTools(
 		"Create a new Blueprint class.",
 		{
 			name: z.string().describe("Blueprint asset name"),
-			parent_class: z.string().default("Actor").describe("Parent class (e.g., Actor, Character, Pawn, PlayerController)"),
+			parent_class: z
+				.string()
+				.default("Actor")
+				.describe("Parent class (e.g., Actor, Character, Pawn, PlayerController)"),
 			path: z.string().default("/Game/Blueprints").describe("Content directory to create in"),
 		},
 		async ({ name, parent_class, path }) => {
@@ -34,7 +37,8 @@ export function registerBlueprintTools(
 				`import unreal
 import json
 factory = unreal.BlueprintFactory()
-factory.set_editor_property('ParentClass', unreal.EditorAssetLibrary.load_blueprint_class('/Script/Engine.{{parent_class}}') if not hasattr(unreal, '{{parent_class}}') else getattr(unreal, '{{parent_class}}'))
+parent = getattr(unreal, '{{parent_class}}', None) or unreal.EditorAssetLibrary.load_asset('/Script/Engine.{{parent_class}}')
+factory.set_editor_property('ParentClass', parent)
 asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
 bp = asset_tools.create_asset('{{name}}', '{{path}}', unreal.Blueprint, factory)
 if bp:
@@ -53,7 +57,11 @@ else:
 		"Add a component to a Blueprint.",
 		{
 			blueprint_path: z.string().describe("Blueprint asset path"),
-			component_class: z.string().describe("Component class (e.g., StaticMeshComponent, BoxCollisionComponent, PointLightComponent)"),
+			component_class: z
+				.string()
+				.describe(
+					"Component class (e.g., StaticMeshComponent, BoxCollisionComponent, PointLightComponent)",
+				),
 			component_name: z.string().optional().describe("Name for the component"),
 		},
 		async ({ blueprint_path, component_class, component_name }) => {
@@ -106,7 +114,9 @@ else:
 		{
 			blueprint_path: z.string().describe("Blueprint asset path"),
 			variable_name: z.string().describe("Variable name"),
-			variable_type: z.enum(["bool", "int", "float", "string", "vector", "rotator", "object"]).describe("Variable type"),
+			variable_type: z
+				.enum(["bool", "int", "float", "string", "vector", "rotator", "object"])
+				.describe("Variable type"),
 			default_value: z.string().optional().describe("Default value as string"),
 		},
 		async ({ blueprint_path, variable_name, variable_type, default_value }) => {
@@ -153,10 +163,19 @@ else:
 		"Add a node to a Blueprint's event graph. Requires the optional C++ plugin for full node type support. Falls back to Python for basic operations.",
 		{
 			blueprint_path: z.string().describe("Blueprint asset path"),
-			node_type: z.string().describe("Node type (e.g., Branch, Print, CallFunction, VariableGet, VariableSet, ReceiveBeginPlay, ReceiveTick, Comparison, Switch, ExecutionSequence, SpawnActor, DynamicCast, etc.)"),
+			node_type: z
+				.string()
+				.describe(
+					"Node type (e.g., Branch, Print, CallFunction, VariableGet, VariableSet, ReceiveBeginPlay, ReceiveTick, Comparison, Switch, ExecutionSequence, SpawnActor, DynamicCast, etc.)",
+				),
 			x: z.number().default(0).describe("X position in graph"),
 			y: z.number().default(0).describe("Y position in graph"),
-			properties: z.record(z.unknown()).optional().describe("Node-specific properties (e.g., {function_name: 'PrintString', target_class: 'KismetSystemLibrary'})"),
+			properties: z
+				.record(z.unknown())
+				.optional()
+				.describe(
+					"Node-specific properties (e.g., {function_name: 'PrintString', target_class: 'KismetSystemLibrary'})",
+				),
 		},
 		async ({ blueprint_path, node_type, x, y, properties }) => {
 			manager.requireEditor();
@@ -171,13 +190,16 @@ else:
 
 			// Python fallback — limited to basic node types
 			return {
-				content: [{
-					type: "text",
-					text: JSON.stringify({
-						error: "Full node graph editing requires the UnrealMCPBridge plugin. Without it, use create_blueprint, add_blueprint_component, add_blueprint_variable, and compile_blueprint for basic Blueprint operations.",
-						hint: "Install the plugin from plugin/UnrealMCPBridge/ in your UE project's Plugins directory.",
-					}),
-				}],
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify({
+							error:
+								"Full node graph editing requires the UnrealMCPBridge plugin. Without it, use create_blueprint, add_blueprint_component, add_blueprint_variable, and compile_blueprint for basic Blueprint operations.",
+							hint: "Install the plugin from plugin/UnrealMCPBridge/ in your UE project's Plugins directory.",
+						}),
+					},
+				],
 			};
 		},
 	);
@@ -204,13 +226,15 @@ else:
 			}
 
 			return {
-				content: [{
-					type: "text",
-					text: JSON.stringify({
-						error: "Node pin wiring requires the UnrealMCPBridge plugin.",
-						hint: "Install the plugin from plugin/UnrealMCPBridge/ in your UE project's Plugins directory.",
-					}),
-				}],
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify({
+							error: "Node pin wiring requires the UnrealMCPBridge plugin.",
+							hint: "Install the plugin from plugin/UnrealMCPBridge/ in your UE project's Plugins directory.",
+						}),
+					},
+				],
 			};
 		},
 	);
@@ -234,10 +258,12 @@ else:
 			}
 
 			return {
-				content: [{
-					type: "text",
-					text: JSON.stringify({ error: "Node removal requires the UnrealMCPBridge plugin." }),
-				}],
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify({ error: "Node removal requires the UnrealMCPBridge plugin." }),
+					},
+				],
 			};
 		},
 	);
@@ -343,29 +369,43 @@ else:
 		{
 			blueprint_path: z.string().describe("Blueprint asset path"),
 			label: z.string().optional().describe("Actor label"),
-			location: z.object({ x: z.number(), y: z.number(), z: z.number() }).default({ x: 0, y: 0, z: 0 }),
-			rotation: z.object({ pitch: z.number(), yaw: z.number(), roll: z.number() }).default({ pitch: 0, yaw: 0, roll: 0 }),
+			location: z
+				.object({ x: z.number(), y: z.number(), z: z.number() })
+				.default({ x: 0, y: 0, z: 0 }),
+			rotation: z
+				.object({ pitch: z.number(), yaw: z.number(), roll: z.number() })
+				.default({ pitch: 0, yaw: 0, roll: 0 }),
 		},
 		async ({ blueprint_path, label, location, rotation }) => {
 			manager.requireEditor();
-			const labelLine = label ? `actor.set_actor_label('${label}')` : "";
 			const script = inlineScript(
 				`import unreal
 import json
 bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
-    loc = unreal.Vector(${location.x}, ${location.y}, ${location.z})
-    rot = unreal.Rotator(${rotation.pitch}, ${rotation.yaw}, ${rotation.roll})
+    loc = unreal.Vector({{loc_x}}, {{loc_y}}, {{loc_z}})
+    rot = unreal.Rotator({{rot_pitch}}, {{rot_yaw}}, {{rot_roll}})
     subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     actor = subsys.spawn_actor_from_class(bp.generated_class, loc, rot)
     if actor:
-        ${labelLine}
+        label = '{{label}}'
+        if label:
+            actor.set_actor_label(label)
         print(json.dumps({"success": True, "name": actor.get_name()}))
     else:
         print(json.dumps({"error": "Failed to spawn Blueprint actor"}))
 else:
     print(json.dumps({"error": "Blueprint not found: {{blueprint_path}}"}))`,
-				{ blueprint_path },
+				{
+					blueprint_path,
+					label: label || "",
+					loc_x: location.x,
+					loc_y: location.y,
+					loc_z: location.z,
+					rot_pitch: rotation.pitch,
+					rot_yaw: rotation.yaw,
+					rot_roll: rotation.roll,
+				},
 			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
@@ -407,6 +447,9 @@ else:
 		},
 	);
 
+	// NOTE: set_blueprint_property intentionally passes property_value as a raw Python expression.
+	// This allows values like True, 42.0, unreal.Vector(1,2,3), etc.
+	// The same trust model applies as execute_python — the MCP caller is trusted.
 	server.tool(
 		"set_blueprint_property",
 		"Set a default property value on a Blueprint's CDO (Class Default Object).",

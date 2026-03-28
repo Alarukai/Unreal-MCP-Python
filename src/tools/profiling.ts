@@ -13,7 +13,12 @@ export function registerProfilingTools(
 		"start_trace",
 		"Start an Unreal Insights trace session with selected channels.",
 		{
-			channels: z.array(z.string()).default(["cpu", "frame", "bookmark"]).describe("Trace channels: cpu, gpu, frame, memory, counters, bookmark, file, net, loadtime"),
+			channels: z
+				.array(z.string())
+				.default(["cpu", "frame", "bookmark"])
+				.describe(
+					"Trace channels: cpu, gpu, frame, memory, counters, bookmark, file, net, loadtime",
+				),
 		},
 		async ({ channels }) => {
 			manager.requireEditor();
@@ -30,26 +35,23 @@ print(json.dumps({"started": True, "channels": "{{channels}}"}))`,
 		},
 	);
 
-	server.tool(
-		"stop_trace",
-		"Stop the active Unreal Insights trace session.",
-		{},
-		async () => {
-			manager.requireEditor();
-			const script = `import unreal
+	server.tool("stop_trace", "Stop the active Unreal Insights trace session.", {}, async () => {
+		manager.requireEditor();
+		const script = `import unreal
 import json
 unreal.SystemLibrary.execute_console_command(None, 'trace.stop')
 print(json.dumps({"stopped": True}))`;
-			const result = await manager.python.execute(script);
-			return { content: [{ type: "text", text: result }] };
-		},
-	);
+		const result = await manager.python.execute(script);
+		return { content: [{ type: "text", text: result }] };
+	});
 
 	server.tool(
 		"run_stat_command",
 		"Execute a stat console command (e.g., stat fps, stat unit, stat memory).",
 		{
-			stat: z.string().describe("Stat command (e.g., 'fps', 'unit', 'memory', 'scenerendering', 'game', 'slow')"),
+			stat: z
+				.string()
+				.describe("Stat command (e.g., 'fps', 'unit', 'memory', 'scenerendering', 'game', 'slow')"),
 		},
 		async ({ stat }) => {
 			manager.requireEditor();

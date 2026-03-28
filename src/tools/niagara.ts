@@ -14,8 +14,12 @@ export function registerNiagaraTools(
 		"Spawn a Niagara particle system at a world location.",
 		{
 			system_path: z.string().describe("Niagara system asset path"),
-			location: z.object({ x: z.number(), y: z.number(), z: z.number() }).describe("World location"),
-			rotation: z.object({ pitch: z.number(), yaw: z.number(), roll: z.number() }).default({ pitch: 0, yaw: 0, roll: 0 }),
+			location: z
+				.object({ x: z.number(), y: z.number(), z: z.number() })
+				.describe("World location"),
+			rotation: z
+				.object({ pitch: z.number(), yaw: z.number(), roll: z.number() })
+				.default({ pitch: 0, yaw: 0, roll: 0 }),
 			auto_destroy: z.boolean().default(true).describe("Auto-destroy when finished"),
 		},
 		async ({ system_path, location, rotation, auto_destroy }) => {
@@ -152,7 +156,9 @@ else:
 		{
 			actor_name: z.string().describe("Actor with Niagara component"),
 			parameter_name: z.string().describe("Parameter name"),
-			value: z.object({ r: z.number(), g: z.number(), b: z.number(), a: z.number().default(1) }).describe("RGBA color (0-1)"),
+			value: z
+				.object({ r: z.number(), g: z.number(), b: z.number(), a: z.number().default(1) })
+				.describe("RGBA color (0-1)"),
 		},
 		async ({ actor_name, parameter_name, value }) => {
 			manager.requireEditor();

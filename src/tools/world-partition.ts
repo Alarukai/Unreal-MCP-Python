@@ -70,13 +70,9 @@ else:
 		},
 	);
 
-	server.tool(
-		"get_loaded_cells",
-		"Query currently loaded world partition cells.",
-		{},
-		async () => {
-			manager.requireEditor();
-			const script = `import unreal
+	server.tool("get_loaded_cells", "Query currently loaded world partition cells.", {}, async () => {
+		manager.requireEditor();
+		const script = `import unreal
 import json
 world = unreal.EditorLevelLibrary.get_editor_world()
 wp = world.get_world_partition()
@@ -84,10 +80,9 @@ if wp:
     print(json.dumps({"success": True, "has_world_partition": True, "hint": "World Partition cell info available in editor World Partition window"}))
 else:
     print(json.dumps({"has_world_partition": False}))`;
-			const result = await manager.python.execute(script);
-			return { content: [{ type: "text", text: result }] };
-		},
-	);
+		const result = await manager.python.execute(script);
+		return { content: [{ type: "text", text: result }] };
+	});
 
 	server.tool(
 		"set_streaming_source",

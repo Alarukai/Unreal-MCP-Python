@@ -66,6 +66,21 @@ This project was built referencing four existing Unreal MCP implementations:
 
 Our differentiator: 127 tools, 4 transport layers (most projects have 1), graceful degradation, no mandatory C++ plugin.
 
+## Plugin Enhancement Layer
+
+The C++ plugin is optional. The architecture supports two paths:
+
+- **Core path** (no plugin): Python Remote Execution + Remote Control API. Covers ~95% of tools. Zero-install beyond enabling built-in UE plugins.
+- **Plugin path** (optional): C++ plugin on port 55557 adds K2 node graph manipulation, faster operations, and editor UI integration.
+
+The `PluginBridgeClient` supports:
+- **Capability negotiation**: On connect, sends `get_capabilities` to learn what the plugin supports
+- **Persistent connection**: Reuses TCP socket across commands with auto-reconnect
+- **Request IDs**: Each command gets a UUID for response matching
+- **Streaming frame parser**: Proper length-prefix parsing for the receive path
+
+Tools use `manager.executeWithPluginFallback()` for the dual-path pattern: tries plugin first, falls back to Python on failure or absence. Always pass all Python scripts through `inlineScript()` with `{{var}}` — never use raw `${var}` in Python code strings.
+
 ## Code Style
 
 - Biome for formatting and linting: tabs, 100-char line width, recommended rules

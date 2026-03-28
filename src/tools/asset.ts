@@ -13,29 +13,40 @@ export function registerAssetTools(
 		"list_assets",
 		"List assets in a content directory with optional class filter.",
 		{
-			directory: z.string().default("/Game").describe("Content directory path (e.g., /Game, /Game/Meshes)"),
-			class_filter: z.string().optional().describe("Filter by asset class (e.g., StaticMesh, Material, Blueprint)"),
+			directory: z
+				.string()
+				.default("/Game")
+				.describe("Content directory path (e.g., /Game, /Game/Meshes)"),
+			class_filter: z
+				.string()
+				.optional()
+				.describe("Filter by asset class (e.g., StaticMesh, Material, Blueprint)"),
 			recursive: z.boolean().default(true).describe("Include subdirectories"),
 		},
 		async ({ directory, class_filter, recursive }) => {
 			manager.requireEditor();
-			const script = `import unreal
+			const script = inlineScript(
+				`import unreal
 import json
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
-path = '${directory}'
-recursive = ${recursive ? "True" : "False"}
+path = '{{directory}}'
+recursive = {{recursive}}
 assets = registry.get_assets_by_path(path, recursive)
+class_filter = '{{class_filter}}'
 results = []
 for a in assets:
     cls = str(a.asset_class_path.asset_name) if hasattr(a, 'asset_class_path') else str(a.asset_class)
-    ${class_filter ? `if '${class_filter}' not in cls: continue` : ""}
+    if class_filter and class_filter not in cls:
+        continue
     results.append({
         "name": str(a.asset_name),
         "class": cls,
         "path": str(a.package_name) + '.' + str(a.asset_name),
         "package": str(a.package_name)
     })
-print(json.dumps(results[:500], indent=2))`;
+print(json.dumps(results[:500], indent=2))`,
+				{ directory, class_filter: class_filter || "", recursive: recursive ? "True" : "False" },
+			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
 		},
@@ -55,7 +66,9 @@ print(json.dumps(results[:500], indent=2))`;
 import json
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
 filt = unreal.ARFilter()
-${class_filter ? `filt.class_paths = [unreal.TopLevelAssetPath('/Script/Engine', '${class_filter}')]` : ""}
+class_filter = '{{class_filter}}'
+if class_filter:
+    filt.class_paths = [unreal.TopLevelAssetPath('/Script/Engine', class_filter)]
 assets = registry.get_assets(filt)
 query = '{{query}}'.lower()
 results = []
@@ -67,7 +80,7 @@ for a in assets:
         if len(results) >= 100:
             break
 print(json.dumps(results, indent=2))`,
-				{ query },
+				{ query, class_filter: class_filter || "" },
 			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
@@ -207,7 +220,9 @@ else:
 		"Import an external file (FBX, PNG, WAV, etc.) into the project.",
 		{
 			source_file: z.string().describe("Path to the file on disk to import"),
-			destination_path: z.string().describe("Content directory to import into (e.g., /Game/Meshes)"),
+			destination_path: z
+				.string()
+				.describe("Content directory to import into (e.g., /Game/Meshes)"),
 		},
 		async ({ source_file, destination_path }) => {
 			manager.requireEditor();
@@ -266,15 +281,21 @@ print(json.dumps({"success": success, "output": '{{output_path}}'}))`,
 		},
 		async ({ directory }) => {
 			manager.requireEditor();
-			const script = `import unreal
+			const script = inlineScript(
+				`import unreal
 import json
 subsys = unreal.get_editor_subsystem(unreal.EditorValidatorSubsystem)
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+assets = registry.get_assets_by_path('{{directory}}', True)
+asset_list = [a for a in assets[:50]]
 results = subsys.validate_assets_with_settings(
-    [unreal.AssetData(unreal.EditorAssetLibrary.load_asset(a)) for a in unreal.EditorAssetLibrary.list_assets('${directory}', recursive=True)[:50]],
+    asset_list,
     unreal.ValidateAssetsSettings(),
     unreal.ValidateAssetsResults()
 )
-print(json.dumps({"validated": True}))`;
+print(json.dumps({"validated": True}))`,
+				{ directory },
+			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
 		},
@@ -300,20 +321,15 @@ print(json.dumps({"saved": success}))`,
 		},
 	);
 
-	server.tool(
-		"save_all",
-		"Save all dirty (modified) assets.",
-		{},
-		async () => {
-			manager.requireEditor();
-			const script = `import unreal
+	server.tool("save_all", "Save all dirty (modified) assets.", {}, async () => {
+		manager.requireEditor();
+		const script = `import unreal
 import json
 unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)
 print(json.dumps({"success": True}))`;
-			const result = await manager.python.execute(script);
-			return { content: [{ type: "text", text: result }] };
-		},
-	);
+		const result = await manager.python.execute(script);
+		return { content: [{ type: "text", text: result }] };
+	});
 
 	server.tool(
 		"fix_redirectors",
@@ -322,12 +338,15 @@ print(json.dumps({"success": True}))`;
 		async () => {
 			const result = await manager.subprocess.runCommandlet("FixupRedirects", ["-autocheckout"]);
 			return {
-				content: [{
-					type: "text",
-					text: result.exitCode === 0
-						? "Redirectors fixed successfully."
-						: `Failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
-				}],
+				content: [
+					{
+						type: "text",
+						text:
+							result.exitCode === 0
+								? "Redirectors fixed successfully."
+								: `Failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
+					},
+				],
 			};
 		},
 	);
@@ -343,12 +362,15 @@ print(json.dumps({"success": True}))`;
 			if (directory) args.push(`-packagefolder=${directory}`);
 			const result = await manager.subprocess.runCommandlet("ResavePackages", args);
 			return {
-				content: [{
-					type: "text",
-					text: result.exitCode === 0
-						? "Packages resaved successfully."
-						: `Failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
-				}],
+				content: [
+					{
+						type: "text",
+						text:
+							result.exitCode === 0
+								? "Packages resaved successfully."
+								: `Failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
+					},
+				],
 			};
 		},
 	);
@@ -360,12 +382,15 @@ print(json.dumps({"success": True}))`;
 		async () => {
 			const result = await manager.subprocess.runCommandlet("ContentAudit");
 			return {
-				content: [{
-					type: "text",
-					text: result.exitCode === 0
-						? `Audit complete:\n${result.stdout}`
-						: `Failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
-				}],
+				content: [
+					{
+						type: "text",
+						text:
+							result.exitCode === 0
+								? `Audit complete:\n${result.stdout}`
+								: `Failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
+					},
+				],
 			};
 		},
 	);
@@ -379,19 +404,20 @@ print(json.dumps({"success": True}))`;
 		},
 		async ({ target_path, source_paths }) => {
 			manager.requireEditor();
-			const sourceList = source_paths.map((p) => `'${p}'`).join(", ");
+			const sourcePathsJson = JSON.stringify(source_paths);
 			const script = inlineScript(
 				`import unreal
 import json
 target = unreal.EditorAssetLibrary.load_asset('{{target_path}}')
-sources = [unreal.EditorAssetLibrary.load_asset(p) for p in [${sourceList}]]
+source_paths = json.loads('{{source_paths_json}}')
+sources = [unreal.EditorAssetLibrary.load_asset(p) for p in source_paths]
 sources = [s for s in sources if s is not None]
 if target and sources:
-    unreal.EditorAssetSubsystem().consolidate_assets(target, sources)
+    unreal.get_editor_subsystem(unreal.EditorAssetSubsystem).consolidate_assets(target, sources)
     print(json.dumps({"success": True, "consolidated": len(sources)}))
 else:
     print(json.dumps({"error": "Could not load target or source assets"}))`,
-				{ target_path },
+				{ target_path, source_paths_json: sourcePathsJson },
 			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };

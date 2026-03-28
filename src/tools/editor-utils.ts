@@ -96,7 +96,10 @@ else:
 		"Generate collision for a static mesh.",
 		{
 			mesh_path: z.string().describe("Static mesh asset path"),
-			type: z.enum(["box", "sphere", "capsule", "convex", "auto"]).default("auto").describe("Collision type"),
+			type: z
+				.enum(["box", "sphere", "capsule", "convex", "auto"])
+				.default("auto")
+				.describe("Collision type"),
 		},
 		async ({ mesh_path, type }) => {
 			manager.requireEditor();
@@ -151,35 +154,25 @@ else:
 		},
 	);
 
-	server.tool(
-		"undo",
-		"Undo the last editor action.",
-		{},
-		async () => {
-			manager.requireEditor();
-			const script = `import unreal
+	server.tool("undo", "Undo the last editor action.", {}, async () => {
+		manager.requireEditor();
+		const script = `import unreal
 import json
 success = unreal.SystemLibrary.execute_console_command(None, 'transaction undo')
 print(json.dumps({"undone": True}))`;
-			const result = await manager.python.execute(script);
-			return { content: [{ type: "text", text: result }] };
-		},
-	);
+		const result = await manager.python.execute(script);
+		return { content: [{ type: "text", text: result }] };
+	});
 
-	server.tool(
-		"redo",
-		"Redo the last undone editor action.",
-		{},
-		async () => {
-			manager.requireEditor();
-			const script = `import unreal
+	server.tool("redo", "Redo the last undone editor action.", {}, async () => {
+		manager.requireEditor();
+		const script = `import unreal
 import json
 success = unreal.SystemLibrary.execute_console_command(None, 'transaction redo')
 print(json.dumps({"redone": True}))`;
-			const result = await manager.python.execute(script);
-			return { content: [{ type: "text", text: result }] };
-		},
-	);
+		const result = await manager.python.execute(script);
+		return { content: [{ type: "text", text: result }] };
+	});
 
 	server.tool(
 		"get_undo_history",

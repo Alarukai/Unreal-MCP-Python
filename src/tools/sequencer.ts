@@ -117,16 +117,18 @@ else:
 		{
 			sequence_path: z.string().describe("LevelSequence asset path"),
 			binding_id: z.string().describe("Binding ID (from add_actor_binding or get_sequence_info)"),
-			track_type: z.enum([
-				"MovieScene3DTransformTrack",
-				"MovieSceneSkeletalAnimationTrack",
-				"MovieSceneAudioTrack",
-				"MovieSceneEventTrack",
-				"MovieSceneFloatTrack",
-				"MovieSceneBoolTrack",
-				"MovieSceneVisibilityTrack",
-				"MovieSceneParticleTrack",
-			]).describe("Track class name"),
+			track_type: z
+				.enum([
+					"MovieScene3DTransformTrack",
+					"MovieSceneSkeletalAnimationTrack",
+					"MovieSceneAudioTrack",
+					"MovieSceneEventTrack",
+					"MovieSceneFloatTrack",
+					"MovieSceneBoolTrack",
+					"MovieSceneVisibilityTrack",
+					"MovieSceneParticleTrack",
+				])
+				.describe("Track class name"),
 		},
 		async ({ sequence_path, binding_id, track_type }) => {
 			manager.requireEditor();

@@ -10,7 +10,7 @@ async function main() {
 	await server.connect(transport);
 
 	// Log startup info to stderr (stdout is reserved for MCP protocol)
-	console.error(`[unreal-mcp] Server started`);
+	console.error("[unreal-mcp] Server started");
 	console.error(`[unreal-mcp] Project: ${config.projectPath || "(not set)"}`);
 	console.error(`[unreal-mcp] Engine: ${config.enginePath || "(not set)"}`);
 	console.error(`[unreal-mcp] Modules: ${config.enabledModules.join(", ")}`);

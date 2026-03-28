@@ -8,15 +8,10 @@ export function registerRemoteControlPresetsTools(
 	manager: ConnectionManager,
 	_config: UnrealMcpConfig,
 ): void {
-	server.tool(
-		"list_presets",
-		"List all Remote Control Presets in the project.",
-		{},
-		async () => {
-			const presets = await manager.rc.listPresets();
-			return { content: [{ type: "text", text: JSON.stringify(presets, null, 2) }] };
-		},
-	);
+	server.tool("list_presets", "List all Remote Control Presets in the project.", {}, async () => {
+		const presets = await manager.rc.listPresets();
+		return { content: [{ type: "text", text: JSON.stringify(presets, null, 2) }] };
+	});
 
 	server.tool(
 		"get_preset_info",
@@ -26,14 +21,14 @@ export function registerRemoteControlPresetsTools(
 		},
 		async ({ preset_name }) => {
 			const presets = await manager.rc.listPresets();
-			const preset = (presets as Array<{ Name?: string }>).find(
-				(p) => p.Name === preset_name,
-			);
+			const preset = (presets as Array<{ Name?: string }>).find((p) => p.Name === preset_name);
 			if (preset) {
 				return { content: [{ type: "text", text: JSON.stringify(preset, null, 2) }] };
 			}
 			return {
-				content: [{ type: "text", text: JSON.stringify({ error: `Preset not found: ${preset_name}` }) }],
+				content: [
+					{ type: "text", text: JSON.stringify({ error: `Preset not found: ${preset_name}` }) },
+				],
 			};
 		},
 	);

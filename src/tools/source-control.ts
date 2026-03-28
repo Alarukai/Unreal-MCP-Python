@@ -13,15 +13,18 @@ export function registerSourceControlTools(
 		"sc_status",
 		"Query source control status of file(s).",
 		{
-			paths: z.array(z.string()).describe("File paths to query (content paths like /Game/... or absolute paths)"),
+			paths: z
+				.array(z.string())
+				.describe("File paths to query (content paths like /Game/... or absolute paths)"),
 		},
 		async ({ paths }) => {
 			manager.requireEditor();
-			const pathList = paths.map((p) => `'${p}'`).join(", ");
-			const script = `import unreal
+			const pathsJson = JSON.stringify(paths);
+			const script = inlineScript(
+				`import unreal
 import json
 results = []
-for path in [${pathList}]:
+for path in json.loads('{{paths_json}}'):
     state = unreal.SourceControl.query_file_state(path, True)
     results.append({
         "path": path,
@@ -36,7 +39,9 @@ for path in [${pathList}]:
         "can_check_in": state.can_check_in,
         "is_conflicted": state.is_conflicted,
     })
-print(json.dumps(results, indent=2))`;
+print(json.dumps(results, indent=2))`,
+				{ paths_json: pathsJson },
+			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
 		},
@@ -50,14 +55,17 @@ print(json.dumps(results, indent=2))`;
 		},
 		async ({ paths }) => {
 			manager.requireEditor();
-			const pathList = paths.map((p) => `'${p}'`).join(", ");
-			const script = `import unreal
+			const pathsJson = JSON.stringify(paths);
+			const script = inlineScript(
+				`import unreal
 import json
 results = []
-for path in [${pathList}]:
+for path in json.loads('{{paths_json}}'):
     success = unreal.SourceControl.check_out_file(path)
     results.append({"path": path, "checked_out": success})
-print(json.dumps(results, indent=2))`;
+print(json.dumps(results, indent=2))`,
+				{ paths_json: pathsJson },
+			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
 		},
@@ -72,16 +80,16 @@ print(json.dumps(results, indent=2))`;
 		},
 		async ({ paths, description }) => {
 			manager.requireEditor();
-			const pathList = paths.map((p) => `'${p}'`).join(", ");
+			const pathsJson = JSON.stringify(paths);
 			const script = inlineScript(
 				`import unreal
 import json
 results = []
-for path in [${pathList}]:
+for path in json.loads('{{paths_json}}'):
     success = unreal.SourceControl.check_in_files([path], '{{description}}')
     results.append({"path": path, "checked_in": success})
 print(json.dumps(results, indent=2))`,
-				{ description },
+				{ paths_json: pathsJson, description },
 			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
@@ -96,14 +104,17 @@ print(json.dumps(results, indent=2))`,
 		},
 		async ({ paths }) => {
 			manager.requireEditor();
-			const pathList = paths.map((p) => `'${p}'`).join(", ");
-			const script = `import unreal
+			const pathsJson = JSON.stringify(paths);
+			const script = inlineScript(
+				`import unreal
 import json
 results = []
-for path in [${pathList}]:
+for path in json.loads('{{paths_json}}'):
     success = unreal.SourceControl.revert_file(path)
     results.append({"path": path, "reverted": success})
-print(json.dumps(results, indent=2))`;
+print(json.dumps(results, indent=2))`,
+				{ paths_json: pathsJson },
+			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
 		},
@@ -117,14 +128,17 @@ print(json.dumps(results, indent=2))`;
 		},
 		async ({ paths }) => {
 			manager.requireEditor();
-			const pathList = paths.map((p) => `'${p}'`).join(", ");
-			const script = `import unreal
+			const pathsJson = JSON.stringify(paths);
+			const script = inlineScript(
+				`import unreal
 import json
 results = []
-for path in [${pathList}]:
+for path in json.loads('{{paths_json}}'):
     success = unreal.SourceControl.check_out_or_add_file(path)
     results.append({"path": path, "marked": success})
-print(json.dumps(results, indent=2))`;
+print(json.dumps(results, indent=2))`,
+				{ paths_json: pathsJson },
+			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
 		},

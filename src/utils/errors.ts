@@ -59,17 +59,19 @@ export class BuildError extends UnrealMcpError {
 
 export class TimeoutError extends UnrealMcpError {
 	constructor(operation: string, timeoutMs: number) {
-		super(
-			`Operation "${operation}" timed out after ${timeoutMs}ms`,
-			"TIMEOUT",
-			{ operation, timeoutMs },
-		);
+		super(`Operation "${operation}" timed out after ${timeoutMs}ms`, "TIMEOUT", {
+			operation,
+			timeoutMs,
+		});
 		this.name = "TimeoutError";
 	}
 }
 
 export class PythonExecutionError extends UnrealMcpError {
-	constructor(message: string, public readonly pythonOutput: string) {
+	constructor(
+		message: string,
+		public readonly pythonOutput: string,
+	) {
 		super(message, "PYTHON_EXECUTION_ERROR", { pythonOutput });
 		this.name = "PythonExecutionError";
 	}

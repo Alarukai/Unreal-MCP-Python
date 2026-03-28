@@ -76,7 +76,11 @@ else:
 		"Add an expression node to a material's graph (e.g., TextureSample, Multiply, Constant3Vector).",
 		{
 			material_path: z.string().describe("Material asset path"),
-			expression_class: z.string().describe("Expression class (e.g., MaterialExpressionTextureSample, MaterialExpressionMultiply, MaterialExpressionConstant3Vector, MaterialExpressionVectorParameter)"),
+			expression_class: z
+				.string()
+				.describe(
+					"Expression class (e.g., MaterialExpressionTextureSample, MaterialExpressionMultiply, MaterialExpressionConstant3Vector, MaterialExpressionVectorParameter)",
+				),
 			x: z.number().default(0).describe("X position in graph"),
 			y: z.number().default(0).describe("Y position in graph"),
 		},
@@ -112,11 +116,23 @@ else:
 		{
 			material_path: z.string().describe("Material asset path"),
 			from_expression_name: z.string().describe("Source expression name"),
-			from_output_index: z.number().default(0).describe("Source output pin index"),
+			from_output_name: z
+				.string()
+				.default("")
+				.describe("Source output pin name (empty string for first/default output)"),
 			to_expression_name: z.string().describe("Target expression name"),
-			to_input_index: z.number().default(0).describe("Target input pin index"),
+			to_input_name: z
+				.string()
+				.default("")
+				.describe("Target input pin name (empty string for first/default input)"),
 		},
-		async ({ material_path, from_expression_name, from_output_index, to_expression_name, to_input_index }) => {
+		async ({
+			material_path,
+			from_expression_name,
+			from_output_name,
+			to_expression_name,
+			to_input_name,
+		}) => {
 			manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
@@ -133,14 +149,19 @@ if material:
         if e.get_name() == '{{to_expression_name}}':
             to_expr = e
     if from_expr and to_expr:
-        success = mel.connect_material_expressions(from_expr, '', to_expr, '')
+        success = mel.connect_material_expressions(from_expr, '{{from_output_name}}', to_expr, '{{to_input_name}}')
         print(json.dumps({"success": success}))
     else:
         print(json.dumps({"error": "Expression(s) not found", "available": [e.get_name() for e in expressions]}))
 else:
     print(json.dumps({"error": "Material not found"}))`,
-				{ material_path, from_expression_name, to_expression_name,
-				  from_output_index: String(from_output_index), to_input_index: String(to_input_index) },
+				{
+					material_path,
+					from_expression_name,
+					to_expression_name,
+					from_output_name,
+					to_input_name,
+				},
 			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
@@ -153,14 +174,26 @@ else:
 		{
 			material_path: z.string().describe("Material asset path"),
 			expression_name: z.string().describe("Expression name to connect"),
-			output_index: z.number().default(0).describe("Expression output pin index"),
-			material_property: z.enum([
-				"MP_BaseColor", "MP_Metallic", "MP_Specular", "MP_Roughness",
-				"MP_Normal", "MP_EmissiveColor", "MP_Opacity", "MP_OpacityMask",
-				"MP_AmbientOcclusion", "MP_WorldPositionOffset",
-			]).describe("Material property to connect to"),
+			output_name: z
+				.string()
+				.default("")
+				.describe("Expression output pin name (empty string for first/default output)"),
+			material_property: z
+				.enum([
+					"MP_BaseColor",
+					"MP_Metallic",
+					"MP_Specular",
+					"MP_Roughness",
+					"MP_Normal",
+					"MP_EmissiveColor",
+					"MP_Opacity",
+					"MP_OpacityMask",
+					"MP_AmbientOcclusion",
+					"MP_WorldPositionOffset",
+				])
+				.describe("Material property to connect to"),
 		},
-		async ({ material_path, expression_name, output_index, material_property }) => {
+		async ({ material_path, expression_name, output_name, material_property }) => {
 			manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
@@ -175,14 +208,14 @@ if material:
             expr = e
             break
     if expr:
-        prop = getattr(unreal.MaterialProperty, '${material_property}')
-        success = mel.connect_material_property(expr, '', prop)
+        prop = getattr(unreal.MaterialProperty, '{{material_property}}')
+        success = mel.connect_material_property(expr, '{{output_name}}', prop)
         print(json.dumps({"success": success}))
     else:
         print(json.dumps({"error": "Expression not found: {{expression_name}}"}))
 else:
     print(json.dumps({"error": "Material not found"}))`,
-				{ material_path, expression_name },
+				{ material_path, expression_name, material_property, output_name },
 			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
@@ -312,7 +345,9 @@ else:
 		{
 			instance_path: z.string().describe("Material instance asset path"),
 			parameter_name: z.string().describe("Vector parameter name"),
-			value: z.object({ r: z.number(), g: z.number(), b: z.number(), a: z.number().default(1) }).describe("RGBA values (0-1)"),
+			value: z
+				.object({ r: z.number(), g: z.number(), b: z.number(), a: z.number().default(1) })
+				.describe("RGBA values (0-1)"),
 		},
 		async ({ instance_path, parameter_name, value }) => {
 			manager.requireEditor();

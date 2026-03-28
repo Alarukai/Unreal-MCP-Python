@@ -1,4 +1,4 @@
-import { RemoteExecution } from "unreal-remote-execution";
+import { RemoteExecution, RemoteExecutionConfig } from "unreal-remote-execution";
 import { PythonExecutionError, TimeoutError, UnrealMcpError } from "../utils/errors.js";
 
 export interface PythonExecConfig {
@@ -24,7 +24,13 @@ export class PythonExecClient {
 	private _commandReady = false;
 
 	constructor(config: PythonExecConfig) {
-		this.remote = new RemoteExecution();
+		const remoteConfig = new RemoteExecutionConfig(
+			0, // multicastTTL: local host only
+			["239.0.0.1", 6766], // multicastGroupEndpoint (UE default)
+			"0.0.0.0", // multicastBindAddress
+			[config.host, config.port], // commandEndpoint
+		);
+		this.remote = new RemoteExecution(remoteConfig);
 		this.timeout = config.timeout;
 	}
 
@@ -127,10 +133,7 @@ export class PythonExecClient {
 			if (error instanceof UnrealMcpError) throw error;
 			// Connection may have dropped — reset and let next call reconnect
 			this._commandReady = false;
-			throw new PythonExecutionError(
-				`Python execution failed: ${error}`,
-				String(error),
-			);
+			throw new PythonExecutionError(`Python execution failed: ${error}`, String(error));
 		}
 	}
 

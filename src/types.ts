@@ -50,14 +50,22 @@ export interface BuildDiagnostic {
 }
 
 export interface PluginBridgeCommand {
+	id?: string;
 	command: string;
 	params: Record<string, unknown>;
 }
 
 export interface PluginBridgeResponse {
+	id?: string;
 	success: boolean;
 	data?: unknown;
 	error?: string;
+}
+
+export interface PluginCapabilities {
+	version: string;
+	commands: string[];
+	features: string[];
 }
 
 export const ALL_MODULES = [

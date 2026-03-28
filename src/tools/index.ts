@@ -2,20 +2,20 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ConnectionManager } from "../transports/connection-manager.js";
 import type { UnrealMcpConfig } from "../types.js";
 import { registerActorTools } from "./actor.js";
+import { registerAnimationTools } from "./animation.js";
 import { registerAssetTools } from "./asset.js";
 import { registerBlueprintTools } from "./blueprint.js";
 import { registerBuildTools } from "./build.js";
 import { registerConsoleTools } from "./console.js";
+import { registerEditorUtilsTools } from "./editor-utils.js";
 import { registerMaterialTools } from "./material.js";
 import { registerNiagaraTools } from "./niagara.js";
-import { registerSequencerTools } from "./sequencer.js";
-import { registerSourceControlTools } from "./source-control.js";
-import { registerTestingTools } from "./testing.js";
-import { registerAnimationTools } from "./animation.js";
-import { registerEditorUtilsTools } from "./editor-utils.js";
 import { registerPluginTools } from "./plugin.js";
 import { registerProfilingTools } from "./profiling.js";
 import { registerRemoteControlPresetsTools } from "./remote-control-presets.js";
+import { registerSequencerTools } from "./sequencer.js";
+import { registerSourceControlTools } from "./source-control.js";
+import { registerTestingTools } from "./testing.js";
 import { registerWorldPartitionTools } from "./world-partition.js";
 
 // All 16 tool modules registered

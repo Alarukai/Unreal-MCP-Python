@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { loadConfig } from "./config.js";
-import { ConnectionManager } from "./transports/connection-manager.js";
 import { registerAllTools } from "./tools/index.js";
+import { ConnectionManager } from "./transports/connection-manager.js";
 import type { UnrealMcpConfig } from "./types.js";
 
 export async function createServer(
@@ -48,7 +48,14 @@ export async function createServer(
 				{
 					uri: "unreal://status",
 					mimeType: "application/json",
-					text: JSON.stringify(status, null, 2),
+					text: JSON.stringify(
+						{
+							...status,
+							pluginCapabilities: manager.pluginCapabilities,
+						},
+						null,
+						2,
+					),
 				},
 			],
 		};

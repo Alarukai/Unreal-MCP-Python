@@ -122,9 +122,7 @@ export class SubprocessRunner {
 	 * Generate project files (VS/Xcode/Rider).
 	 */
 	async generateProjectFiles(): Promise<SubprocessResult> {
-		return this.runUAT("GenerateProjectFiles", [
-			`-project=${this.config.projectPath}`,
-		]);
+		return this.runUAT("GenerateProjectFiles", [`-project=${this.config.projectPath}`]);
 	}
 
 	private getUATPath(): string | null {
@@ -145,8 +143,22 @@ export class SubprocessRunner {
 		if (!this.config.enginePath) return null;
 
 		const candidates = [
-			join(this.config.enginePath, "Engine", "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool.exe"),
-			join(this.config.enginePath, "Engine", "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool"),
+			join(
+				this.config.enginePath,
+				"Engine",
+				"Binaries",
+				"DotNET",
+				"UnrealBuildTool",
+				"UnrealBuildTool.exe",
+			),
+			join(
+				this.config.enginePath,
+				"Engine",
+				"Binaries",
+				"DotNET",
+				"UnrealBuildTool",
+				"UnrealBuildTool",
+			),
 		];
 
 		for (const candidate of candidates) {
@@ -171,11 +183,7 @@ export class SubprocessRunner {
 		return null;
 	}
 
-	private async spawn(
-		command: string,
-		args: string[],
-		timeout: number,
-	): Promise<SubprocessResult> {
+	private async spawn(command: string, args: string[], timeout: number): Promise<SubprocessResult> {
 		return new Promise<SubprocessResult>((resolve, reject) => {
 			const startTime = Date.now();
 			const stdoutChunks: string[] = [];
@@ -204,7 +212,7 @@ export class SubprocessRunner {
 				const stdout = stdoutChunks.join("");
 				const stderr = stderrChunks.join("");
 				const duration = Date.now() - startTime;
-				const parsed = parseBuildOutput(stdout + "\n" + stderr);
+				const parsed = parseBuildOutput(`${stdout}\n${stderr}`);
 
 				resolve({
 					exitCode: exitCode ?? 1,
@@ -218,11 +226,10 @@ export class SubprocessRunner {
 			child.on("error", (err) => {
 				clearTimeout(timer);
 				reject(
-					new UnrealMcpError(
-						`Failed to spawn process: ${err.message}`,
-						"SPAWN_FAILED",
-						{ command, args },
-					),
+					new UnrealMcpError(`Failed to spawn process: ${err.message}`, "SPAWN_FAILED", {
+						command,
+						args,
+					}),
 				);
 			});
 		});

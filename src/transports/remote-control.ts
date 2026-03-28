@@ -100,7 +100,10 @@ export class RemoteControlClient {
 				body.Filter = { ClassNames: query.filter.classNames };
 			}
 			if (query.filter.packageNames) {
-				body.Filter = { ...(body.Filter as object || {}), PackageNames: query.filter.packageNames };
+				body.Filter = {
+					...((body.Filter as object) || {}),
+					PackageNames: query.filter.packageNames,
+				};
 			}
 		}
 		const result = await this.request("/remote/search", body);
@@ -119,11 +122,7 @@ export class RemoteControlClient {
 		);
 	}
 
-	async setPresetProperty(
-		presetName: string,
-		propertyName: string,
-		value: unknown,
-	): Promise<void> {
+	async setPresetProperty(presetName: string, propertyName: string, value: unknown): Promise<void> {
 		await this.rawRequest(
 			`/remote/preset/${encodeURIComponent(presetName)}/property/${encodeURIComponent(propertyName)}`,
 			"PUT",

@@ -39,22 +39,42 @@ export function substituteVars(
 
 /**
  * Escape a string for safe use inside Python single or double quotes.
+ * Handles backslashes, quotes, common whitespace, null bytes, and control characters.
  */
-function escapePythonString(value: string): string {
+export function escapePythonString(value: string): string {
 	return value
 		.replace(/\\/g, "\\\\")
 		.replace(/'/g, "\\'")
 		.replace(/"/g, '\\"')
 		.replace(/\n/g, "\\n")
 		.replace(/\r/g, "\\r")
-		.replace(/\t/g, "\\t");
+		.replace(/\t/g, "\\t")
+		.replace(/\0/g, "\\x00")
+		.replace(/[^ -~\t\n\r]/g, (c) => {
+			const code = c.charCodeAt(0);
+			if (code > 127) return c; // Pass through non-ASCII (Unicode) as-is
+			return `\\x${code.toString(16).padStart(2, "0")}`;
+		});
+}
+
+/**
+ * Build a safe Python list literal from an array of strings.
+ * Each value is escaped for safe embedding in Python single-quoted strings.
+ * Returns e.g. "['val1', 'val2']"
+ */
+export function escapePythonArray(values: string[]): string {
+	const escaped = values.map((v) => `'${escapePythonString(v)}'`).join(", ");
+	return `[${escaped}]`;
 }
 
 /**
  * Build an inline Python script from code string and variables.
  * Useful for simple scripts that don't warrant a template file.
  */
-export function inlineScript(code: string, vars: Record<string, string | number | boolean> = {}): string {
+export function inlineScript(
+	code: string,
+	vars: Record<string, string | number | boolean> = {},
+): string {
 	return substituteVars(code, vars);
 }
 

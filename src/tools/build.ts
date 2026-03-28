@@ -12,10 +12,7 @@ export function registerBuildTools(
 		"build_target",
 		"Build a C++ target using UnrealBuildTool. Compiles the project's C++ code.",
 		{
-			target: z
-				.string()
-				.default("Editor")
-				.describe("Build target: Editor, Game, Client, Server"),
+			target: z.string().default("Editor").describe("Build target: Editor, Game, Client, Server"),
 			platform: z
 				.string()
 				.optional()
@@ -59,10 +56,7 @@ export function registerBuildTools(
 			compressed: z.boolean().default(false).describe("Compress pak files"),
 			platform: z.string().optional().describe("Target platform"),
 			configuration: z.string().optional().describe("Build configuration"),
-			additional_args: z
-				.array(z.string())
-				.optional()
-				.describe("Additional UAT arguments"),
+			additional_args: z.array(z.string()).optional().describe("Additional UAT arguments"),
 		},
 		async (opts) => {
 			const result = await manager.subprocess.buildCookRun({
@@ -94,10 +88,7 @@ export function registerBuildTools(
 		{
 			platform: z.string().optional().describe("Target platform"),
 			iterate: z.boolean().default(true).describe("Iterative cook"),
-			maps: z
-				.array(z.string())
-				.optional()
-				.describe("Specific maps to cook (empty = all)"),
+			maps: z.array(z.string()).optional().describe("Specific maps to cook (empty = all)"),
 		},
 		async ({ platform, iterate, maps }) => {
 			const args: string[] = [];
@@ -189,9 +180,10 @@ export function registerBuildTools(
 				content: [
 					{
 						type: "text",
-						text: result.exitCode === 0
-							? "Project files generated successfully."
-							: `Failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
+						text:
+							result.exitCode === 0
+								? "Project files generated successfully."
+								: `Failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
 					},
 				],
 			};
@@ -204,17 +196,10 @@ export function registerBuildTools(
 		{
 			script_path: z.string().describe("Path to the BuildGraph XML script"),
 			target: z.string().describe("BuildGraph target to execute"),
-			additional_args: z
-				.array(z.string())
-				.optional()
-				.describe("Additional arguments"),
+			additional_args: z.array(z.string()).optional().describe("Additional arguments"),
 		},
 		async ({ script_path, target, additional_args }) => {
-			const args = [
-				`-script=${script_path}`,
-				`-target=${target}`,
-				...(additional_args || []),
-			];
+			const args = [`-script=${script_path}`, `-target=${target}`, ...(additional_args || [])];
 			const result = await manager.subprocess.runUAT("BuildGraph", args);
 			return {
 				content: [
@@ -246,9 +231,10 @@ export function registerBuildTools(
 				content: [
 					{
 						type: "text",
-						text: result.exitCode === 0
-							? "Clean completed successfully."
-							: `Clean failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
+						text:
+							result.exitCode === 0
+								? "Clean completed successfully."
+								: `Clean failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`,
 					},
 				],
 			};
@@ -259,9 +245,7 @@ export function registerBuildTools(
 		"get_build_status",
 		"Parse the last build output and return structured errors, warnings, and progress.",
 		{
-			build_log: z
-				.string()
-				.describe("Raw build log output to parse for errors and warnings"),
+			build_log: z.string().describe("Raw build log output to parse for errors and warnings"),
 		},
 		async ({ build_log }) => {
 			const { parseBuildOutput } = await import("../utils/output-parser.js");

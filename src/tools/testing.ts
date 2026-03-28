@@ -48,35 +48,25 @@ print(json.dumps({"started": True, "test": "{{test_name}}", "hint": "Check Outpu
 		},
 	);
 
-	server.tool(
-		"run_all_automation_tests",
-		"Run all automation tests.",
-		{},
-		async () => {
-			manager.requireEditor();
-			const script = `import unreal
+	server.tool("run_all_automation_tests", "Run all automation tests.", {}, async () => {
+		manager.requireEditor();
+		const script = `import unreal
 import json
 unreal.SystemLibrary.execute_console_command(None, 'automation runall')
 print(json.dumps({"started": True, "hint": "Check Output Log for test results"}))`;
-			const result = await manager.python.execute(script);
-			return { content: [{ type: "text", text: result }] };
-		},
-	);
+		const result = await manager.python.execute(script);
+		return { content: [{ type: "text", text: result }] };
+	});
 
-	server.tool(
-		"run_map_check",
-		"Run Map Check validation on the current level.",
-		{},
-		async () => {
-			manager.requireEditor();
-			const script = `import unreal
+	server.tool("run_map_check", "Run Map Check validation on the current level.", {}, async () => {
+		manager.requireEditor();
+		const script = `import unreal
 import json
 unreal.SystemLibrary.execute_console_command(None, 'map check')
 print(json.dumps({"success": True, "hint": "Check Message Log for Map Check results"}))`;
-			const result = await manager.python.execute(script);
-			return { content: [{ type: "text", text: result }] };
-		},
-	);
+		const result = await manager.python.execute(script);
+		return { content: [{ type: "text", text: result }] };
+	});
 
 	server.tool(
 		"validate_data",
@@ -86,12 +76,15 @@ print(json.dumps({"success": True, "hint": "Check Message Log for Map Check resu
 		},
 		async ({ directory }) => {
 			manager.requireEditor();
-			const script = `import unreal
+			const script = inlineScript(
+				`import unreal
 import json
 subsys = unreal.get_editor_subsystem(unreal.EditorValidatorSubsystem)
-asset_paths = unreal.EditorAssetLibrary.list_assets('${directory}', recursive=True)
+asset_paths = unreal.EditorAssetLibrary.list_assets('{{directory}}', recursive=True)
 count = min(len(asset_paths), 100)
-print(json.dumps({"validating": count, "directory": "${directory}"}))`;
+print(json.dumps({"validating": count, "directory": "{{directory}}"}))`,
+				{ directory },
+			);
 			const result = await manager.python.execute(script);
 			return { content: [{ type: "text", text: result }] };
 		},
@@ -114,12 +107,14 @@ print(json.dumps({"validating": count, "directory": "${directory}"}))`;
 				`-test=${test_name}`,
 			]);
 			return {
-				content: [{
-					type: "text",
-					text: result.parsed
-						? JSON.stringify(result.parsed, null, 2)
-						: `Exit code: ${result.exitCode}\n${result.stdout}`,
-				}],
+				content: [
+					{
+						type: "text",
+						text: result.parsed
+							? JSON.stringify(result.parsed, null, 2)
+							: `Exit code: ${result.exitCode}\n${result.stdout}`,
+					},
+				],
 			};
 		},
 	);
@@ -128,7 +123,9 @@ print(json.dumps({"validating": count, "directory": "${directory}"}))`;
 		"run_automation_tests_by_category",
 		"Run automation tests matching a category pattern.",
 		{
-			category: z.string().describe("Test category pattern (e.g., 'Project.Functional', 'Engine.Rendering')"),
+			category: z
+				.string()
+				.describe("Test category pattern (e.g., 'Project.Functional', 'Engine.Rendering')"),
 		},
 		async ({ category }) => {
 			manager.requireEditor();

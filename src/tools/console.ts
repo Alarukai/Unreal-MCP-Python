@@ -47,8 +47,7 @@ export function registerConsoleTools(
 		},
 		async ({ filename }) => {
 			manager.requireEditor();
-			const fname =
-				filename || `screenshot_${Date.now()}.png`;
+			const fname = filename || `screenshot_${Date.now()}.png`;
 			const script = inlineScript(
 				`import unreal
 import os
@@ -72,7 +71,7 @@ print(path)`,
 import json
 vp = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_level_viewport_camera_info()
 if vp:
-    loc, rot = vp
+    success, loc, rot = vp
     result = {
         "location": {"x": loc.x, "y": loc.y, "z": loc.z},
         "rotation": {"pitch": rot.pitch, "yaw": rot.yaw, "roll": rot.roll}

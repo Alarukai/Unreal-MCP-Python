@@ -1,4 +1,4 @@
-import type { ConnectionStatus, UnrealMcpConfig } from "../types.js";
+import type { ConnectionStatus, PluginCapabilities, UnrealMcpConfig } from "../types.js";
 import { PluginBridgeClient } from "./plugin-bridge.js";
 import { PythonExecClient } from "./python-exec.js";
 import { RemoteControlClient } from "./remote-control.js";
@@ -88,7 +88,7 @@ export class ConnectionManager {
 		if (!this._status.editorRunning) {
 			throw new Error(
 				"Unreal Editor is not connected. Make sure the editor is running with " +
-				"Remote Control API and/or Python Editor Script plugins enabled.",
+					"Remote Control API and/or Python Editor Script plugins enabled.",
 			);
 		}
 	}
@@ -100,7 +100,51 @@ export class ConnectionManager {
 		return this._status.pluginBridge;
 	}
 
+	/**
+	 * Get the plugin's negotiated capabilities, or null if plugin is not connected.
+	 */
+	get pluginCapabilities(): PluginCapabilities | null {
+		return this.plugin?.capabilities ?? null;
+	}
+
+	/**
+	 * Execute an operation with plugin-first, Python-fallback strategy.
+	 *
+	 * If the plugin is available and supports the given command, it is used.
+	 * On plugin failure or absence, the pythonFallback function is called instead.
+	 * This centralizes the dual-path pattern used across tool modules.
+	 */
+	async executeWithPluginFallback(options: {
+		pluginCommand: string;
+		pluginParams: Record<string, unknown>;
+		pythonFallback: () => Promise<string>;
+	}): Promise<string> {
+		if (this.hasPlugin && this.plugin.hasCapability(options.pluginCommand)) {
+			try {
+				const response = await this.plugin.sendCommand({
+					command: options.pluginCommand,
+					params: options.pluginParams,
+				});
+				if (response.success) {
+					return typeof response.data === "string"
+						? response.data
+						: JSON.stringify(response.data, null, 2);
+				}
+				// Plugin returned an error — fall through to Python
+				console.error(
+					`[unreal-mcp] Plugin command ${options.pluginCommand} failed: ${response.error}, falling back to Python`,
+				);
+			} catch (error) {
+				console.error(
+					`[unreal-mcp] Plugin command ${options.pluginCommand} error: ${error}, falling back to Python`,
+				);
+			}
+		}
+
+		return options.pythonFallback();
+	}
+
 	async shutdown(): Promise<void> {
-		await this.python.disconnect();
+		await Promise.all([this.python.disconnect(), this.plugin.disconnect()]);
 	}
 }
