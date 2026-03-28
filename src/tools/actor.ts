@@ -77,7 +77,7 @@ if hasattr(unreal, actor_class_name):
 else:
     actor_class = unreal.EditorAssetLibrary.load_asset('/Script/Engine.' + actor_class_name)
     if actor_class:
-        actor_class = actor_class.generated_class if hasattr(actor_class, 'generated_class') else actor_class
+        actor_class = actor_class.generated_class() if hasattr(actor_class, 'generated_class') else actor_class
 if actor_class:
     actor = unreal.EditorLevelLibrary.spawn_actor_from_class(actor_class, loc, rot)
     if actor:

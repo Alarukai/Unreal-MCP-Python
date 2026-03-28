@@ -81,22 +81,21 @@ else:
 import json
 bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
-    subsys = unreal.get_editor_subsystem(unreal.SubobjectDataSubsystem)
-    root_handle = subsys.k2_gather_subobject_data_for_blueprint(bp)
     comp_class = getattr(unreal, '{{component_class}}', None)
     if comp_class:
-        # Use SCS (Simple Construction Script) to add component
-        scs = getattr(bp, 'simple_construction_script', None) or bp.get_editor_property('SimpleConstructionScript')
-        if scs:
-            node = scs.create_node(comp_class, '{{cname}}')
-            if node:
-                scs.add_node(node)
+        try:
+            subsys = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+            handles = subsys.k2_gather_subobject_data_for_blueprint(bp)
+            root_handle = handles[0] if handles else None
+            new_handle, fail = subsys.k2_add_new_subobject(unreal.AddNewSubobjectParams(parent_handle=root_handle, new_class=comp_class, blueprint_context=bp))
+            if new_handle.is_valid():
+                unreal.BlueprintEditorLibrary.compile_blueprint(bp)
                 unreal.EditorAssetLibrary.save_asset('{{blueprint_path}}')
-                print(json.dumps({"success": True, "component": '{{cname}}'}))
+                print(json.dumps({"success": True, "component": "{{cname}}"}))
             else:
-                print(json.dumps({"error": "Failed to create SCS node"}))
-        else:
-            print(json.dumps({"error": "Blueprint has no SCS"}))
+                print(json.dumps({"error": "Failed to add component: " + str(fail)}))
+        except Exception as e:
+            print(json.dumps({"error": str(e)}))
     else:
         print(json.dumps({"error": "Component class not found: {{component_class}}"}))
 else:
@@ -285,24 +284,20 @@ else:
 				return { content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }] };
 			}
 
-			// Python fallback — basic graph inspection
-			const script = inlineScript(
-				`import unreal
-import json
-bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
-if bp:
-    graphs = bp.ubergraph_pages
-    result = []
-    for g in graphs:
-        for node in g.graph.nodes if hasattr(g, 'graph') else []:
-            result.append({"name": node.get_name(), "class": node.get_class().get_name()})
-    print(json.dumps(result, indent=2))
-else:
-    print(json.dumps({"error": "Blueprint not found"}))`,
-				{ blueprint_path },
-			);
-			const result = await manager.runPython(script);
-			return { content: [{ type: "text", text: result }] };
+			// Python fallback — graph node enumeration is not available via Python API
+			// (ubergraph_pages is not exposed). Return helpful message.
+			return {
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify({
+							error:
+								"Blueprint graph node listing requires the UnrealMCPBridge plugin. The Blueprint graph API (ubergraph_pages) is not exposed to Python.",
+							hint: "Install the plugin from plugin/UnrealMCPBridge/ in your UE project's Plugins directory.",
+						}),
+					},
+				],
+			};
 		},
 	);
 
@@ -346,24 +341,39 @@ bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
     result = {"name": bp.get_name(), "path": bp.get_path_name()}
     try:
-        pc = getattr(bp, 'parent_class', None) or bp.get_editor_property('parent_class')
-        if pc:
-            result["parent_class"] = pc.get_name()
+        gen = bp.generated_class()
+        if gen:
+            super_class = gen.get_super_class()
+            if super_class:
+                result["parent_class"] = super_class.get_name()
     except:
         pass
     try:
-        gen_class = bp.generated_class
+        gen_class = bp.generated_class()
         if gen_class:
             result["generated_class"] = gen_class.get_name()
     except:
         pass
     try:
-        scs = getattr(bp, 'simple_construction_script', None) or bp.get_editor_property('SimpleConstructionScript')
-        if scs:
-            nodes = scs.get_all_nodes()
-            result["components"] = [{"name": str(n.get_variable_name()), "class": n.component_class.get_name() if n.component_class else "Unknown"} for n in nodes]
+        subsys = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+        handles = subsys.k2_gather_subobject_data_for_blueprint(bp)
+        comps = []
+        for h in handles:
+            data = subsys.k2_find_subobject_data_from_handle(h)
+            if data:
+                comps.append({"name": str(data.get_variable_name()), "class": data.get_object_for_blueprint(bp).get_class().get_name() if data.get_object_for_blueprint(bp) else "Unknown"})
+        if comps:
+            result["components"] = comps
     except:
-        pass
+        try:
+            gen = bp.generated_class()
+            if gen:
+                cdo = unreal.get_default_object(gen)
+                if cdo:
+                    all_comps = cdo.get_components_by_class(unreal.ActorComponent)
+                    result["components"] = [{"name": c.get_name(), "class": c.get_class().get_name()} for c in all_comps]
+        except:
+            pass
     print(json.dumps(result, indent=2))
 else:
     print(json.dumps({"error": "Blueprint not found: {{blueprint_path}}"}))`,
@@ -397,7 +407,7 @@ if bp:
     loc = unreal.Vector({{loc_x}}, {{loc_y}}, {{loc_z}})
     rot = unreal.Rotator({{rot_pitch}}, {{rot_yaw}}, {{rot_roll}})
     subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-    actor = subsys.spawn_actor_from_class(bp.generated_class, loc, rot)
+    actor = subsys.spawn_actor_from_class(bp.generated_class(), loc, rot)
     if actor:
         label = '{{label}}'
         if label:
@@ -507,30 +517,34 @@ else:
     # Handle dot-path for component properties (e.g., BodyMesh.StaticMesh)
     if '.' in prop_name:
         comp_name, sub_prop = prop_name.split('.', 1)
-        scs = getattr(bp, 'simple_construction_script', None) or bp.get_editor_property('SimpleConstructionScript')
-        if scs:
-            for node in scs.get_all_nodes():
-                tmpl = node.component_template
-                if tmpl and (tmpl.get_name() == comp_name or str(node.get_variable_name()) == comp_name):
+        gen = bp.generated_class()
+        cdo = unreal.get_default_object(gen) if gen else None
+        if cdo:
+            found = False
+            for comp in cdo.get_components_by_class(unreal.ActorComponent):
+                if comp.get_name() == comp_name or comp_name in comp.get_name():
                     try:
-                        # For StaticMesh on StaticMeshComponent, use set_static_mesh
-                        if sub_prop == 'StaticMesh' and hasattr(tmpl, 'set_static_mesh'):
-                            tmpl.set_static_mesh(value)
+                        if sub_prop == 'StaticMesh' and hasattr(comp, 'set_static_mesh'):
+                            comp.set_static_mesh(value)
+                        elif sub_prop == 'SkeletalMesh' and hasattr(comp, 'set_skeletal_mesh_asset'):
+                            comp.set_skeletal_mesh_asset(value)
                         else:
-                            tmpl.set_editor_property(sub_prop, value)
+                            comp.set_editor_property(sub_prop, value)
                         unreal.EditorAssetLibrary.save_asset('{{blueprint_path}}')
                         print(json.dumps({"success": True, "component": comp_name, "property": sub_prop}))
+                        found = True
                     except Exception as e:
                         print(json.dumps({"error": str(e)}))
+                        found = True
                     break
-            else:
+            if not found:
                 print(json.dumps({"error": "Component not found: " + comp_name}))
         else:
-            print(json.dumps({"error": "Blueprint has no SCS"}))
+            print(json.dumps({"error": "Could not get CDO"}))
     else:
         # Top-level CDO property
         try:
-            gen_class = bp.generated_class
+            gen_class = bp.generated_class()
             cdo = unreal.get_default_object(gen_class) if gen_class else None
             if cdo:
                 cdo.set_editor_property(prop_name, value)
