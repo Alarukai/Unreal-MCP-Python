@@ -355,25 +355,17 @@ if bp:
     except:
         pass
     try:
-        subsys = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
-        handles = subsys.k2_gather_subobject_data_for_blueprint(bp)
-        comps = []
-        for h in handles:
-            data = subsys.k2_find_subobject_data_from_handle(h)
-            if data:
-                comps.append({"name": str(data.get_variable_name()), "class": data.get_object_for_blueprint(bp).get_class().get_name() if data.get_object_for_blueprint(bp) else "Unknown"})
-        if comps:
-            result["components"] = comps
+        gen = bp.generated_class()
+        if gen:
+            # Spawn temp actor to get all components including inherited
+            subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+            temp = subsys.spawn_actor_from_class(gen, unreal.Vector(0, 0, -100000))
+            if temp:
+                all_comps = temp.get_components_by_class(unreal.ActorComponent)
+                result["components"] = [{"name": c.get_name(), "class": c.get_class().get_name()} for c in all_comps]
+                subsys.destroy_actor(temp)
     except:
-        try:
-            gen = bp.generated_class()
-            if gen:
-                cdo = unreal.get_default_object(gen)
-                if cdo:
-                    all_comps = cdo.get_components_by_class(unreal.ActorComponent)
-                    result["components"] = [{"name": c.get_name(), "class": c.get_class().get_name()} for c in all_comps]
-        except:
-            pass
+        pass
     print(json.dumps(result, indent=2))
 else:
     print(json.dumps({"error": "Blueprint not found: {{blueprint_path}}"}))`,
@@ -517,30 +509,52 @@ else:
     # Handle dot-path for component properties (e.g., BodyMesh.StaticMesh)
     if '.' in prop_name:
         comp_name, sub_prop = prop_name.split('.', 1)
+        # Spawn a temporary actor to access all components (including inherited)
         gen = bp.generated_class()
-        cdo = unreal.get_default_object(gen) if gen else None
-        if cdo:
-            found = False
-            for comp in cdo.get_components_by_class(unreal.ActorComponent):
-                if comp.get_name() == comp_name or comp_name in comp.get_name():
-                    try:
-                        if sub_prop == 'StaticMesh' and hasattr(comp, 'set_static_mesh'):
-                            comp.set_static_mesh(value)
-                        elif sub_prop == 'SkeletalMesh' and hasattr(comp, 'set_skeletal_mesh_asset'):
-                            comp.set_skeletal_mesh_asset(value)
-                        else:
-                            comp.set_editor_property(sub_prop, value)
-                        unreal.EditorAssetLibrary.save_asset('{{blueprint_path}}')
-                        print(json.dumps({"success": True, "component": comp_name, "property": sub_prop}))
-                        found = True
-                    except Exception as e:
-                        print(json.dumps({"error": str(e)}))
-                        found = True
-                    break
-            if not found:
-                print(json.dumps({"error": "Component not found: " + comp_name}))
+        if not gen:
+            print(json.dumps({"error": "Could not get generated class"}))
         else:
-            print(json.dumps({"error": "Could not get CDO"}))
+            # Try CDO first
+            cdo = unreal.get_default_object(gen)
+            target_comp = None
+            if cdo:
+                for comp in cdo.get_components_by_class(unreal.ActorComponent):
+                    if comp.get_name() == comp_name or comp_name in comp.get_name():
+                        target_comp = comp
+                        break
+            # If not found in CDO, spawn a temp actor to find inherited components
+            if not target_comp:
+                subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+                temp = subsys.spawn_actor_from_class(gen, unreal.Vector(0, 0, -100000))
+                if temp:
+                    for comp in temp.get_components_by_class(unreal.ActorComponent):
+                        if comp.get_name() == comp_name or comp_name in comp.get_name():
+                            # Found it on the instance — now set on CDO template
+                            # Find matching component on CDO by class
+                            if cdo:
+                                for cdo_comp in cdo.get_components_by_class(comp.get_class()):
+                                    target_comp = cdo_comp
+                                    break
+                            break
+                    subsys.destroy_actor(temp)
+            if target_comp:
+                try:
+                    if sub_prop == 'StaticMesh' and hasattr(target_comp, 'set_static_mesh'):
+                        target_comp.set_static_mesh(value)
+                    elif sub_prop == 'SkeletalMesh' and hasattr(target_comp, 'set_skeletal_mesh_asset'):
+                        target_comp.set_skeletal_mesh_asset(value)
+                    else:
+                        target_comp.set_editor_property(sub_prop, value)
+                    unreal.EditorAssetLibrary.save_asset('{{blueprint_path}}')
+                    print(json.dumps({"success": True, "component": comp_name, "property": sub_prop}))
+                except Exception as e:
+                    print(json.dumps({"error": str(e)}))
+            else:
+                # List available components to help the user
+                available = []
+                if cdo:
+                    available = [c.get_name() for c in cdo.get_components_by_class(unreal.ActorComponent)]
+                print(json.dumps({"error": "Component not found: " + comp_name, "available_components": available, "hint": "Component may be inherited. Try using execute_python for direct access."}))
     else:
         # Top-level CDO property
         try:
