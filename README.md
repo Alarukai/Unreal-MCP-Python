@@ -2,6 +2,8 @@
 
 The most comprehensive MCP server for Unreal Engine — **127 tools** across **16 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
+> **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
+
 ## Why This One?
 
 | | unreal-mcp | [flopperam](https://github.com/flopperam/unreal-engine-mcp) | [chongdashu](https://github.com/chongdashu/unreal-mcp) | [kvick-games](https://github.com/kvick-games/UnrealMCP) | [ChiR24](https://github.com/ChiR24/Unreal_mcp) |
