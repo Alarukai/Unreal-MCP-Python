@@ -344,24 +344,24 @@ else:
 import json
 bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
-    result = {
-        "name": bp.get_name(),
-        "parent_class": bp.get_editor_property('parent_class').get_name() if bp.get_editor_property('parent_class') else None,
-        "path": bp.get_path_name(),
-    }
-    # Get variables
+    result = {"name": bp.get_name(), "path": bp.get_path_name()}
+    try:
+        pc = getattr(bp, 'parent_class', None) or bp.get_editor_property('parent_class')
+        if pc:
+            result["parent_class"] = pc.get_name()
+    except:
+        pass
     try:
         gen_class = bp.generated_class
         if gen_class:
             result["generated_class"] = gen_class.get_name()
     except:
         pass
-    # Get components from SCS
     try:
         scs = bp.simple_construction_script
         if scs:
             nodes = scs.get_all_nodes()
-            result["components"] = [{"name": n.get_variable_name(), "class": n.component_class.get_name() if n.component_class else "Unknown"} for n in nodes]
+            result["components"] = [{"name": str(n.get_variable_name()), "class": n.component_class.get_name() if n.component_class else "Unknown"} for n in nodes]
     except:
         pass
     print(json.dumps(result, indent=2))

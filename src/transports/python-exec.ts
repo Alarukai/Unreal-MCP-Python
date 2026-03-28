@@ -22,6 +22,8 @@ export class PythonExecClient {
 	private timeout: number;
 	private _started = false;
 	private _commandReady = false;
+	private _discoveryFailed = false;
+	private _lastDiscoveryAttempt = 0;
 
 	constructor(config: PythonExecConfig) {
 		const remoteConfig = new RemoteExecutionConfig(
@@ -36,11 +38,25 @@ export class PythonExecClient {
 
 	async isAvailable(): Promise<boolean> {
 		try {
+			// If discovery failed recently, skip the slow 5s wait and return false
+			// Retry every 30 seconds in case the user enables Remote Execution
+			if (this._discoveryFailed && Date.now() - this._lastDiscoveryAttempt < 30_000) {
+				return false;
+			}
 			if (!this._started) {
 				await this.ensureStarted();
 			}
-			return this.remote.remoteNodes.length > 0;
+			const found = this.remote.remoteNodes.length > 0;
+			if (!found) {
+				this._discoveryFailed = true;
+				this._lastDiscoveryAttempt = Date.now();
+			} else {
+				this._discoveryFailed = false;
+			}
+			return found;
 		} catch {
+			this._discoveryFailed = true;
+			this._lastDiscoveryAttempt = Date.now();
 			return false;
 		}
 	}
