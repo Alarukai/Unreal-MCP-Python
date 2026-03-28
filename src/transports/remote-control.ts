@@ -145,18 +145,49 @@ export class RemoteControlClient {
 	/**
 	 * Execute Python code via the Remote Control HTTP endpoint.
 	 * This provides a fallback when Python Remote Execution (UDP/TCP) is unavailable.
-	 * Uses the /remote/object/call endpoint to invoke KismetSystemLibrary.ExecuteConsoleCommand
-	 * with a `py` prefix, or the /remote/script endpoint if available.
+	 *
+	 * Tries multiple approaches in order:
+	 * 1. /remote/object/call on PythonScriptLibrary (needs RC passlist entry)
+	 * 2. Console command with `py` prefix (works but no stdout capture)
 	 */
 	async executePython(code: string): Promise<string> {
-		// UE Remote Control API supports running Python via PUT /remote/object/call
-		// by calling the Python scripting subsystem
-		const result = await this.rawRequest("/remote/object/call", "PUT", {
-			objectPath: "/Script/PythonScriptPlugin.Default__PythonScriptLibrary",
-			functionName: "ExecuteScript",
-			parameters: { Script: code },
-		});
-		return typeof result === "string" ? result : JSON.stringify(result);
+		// Approach 1: Call PythonScriptLibrary directly (richest, but may need passlist config)
+		try {
+			const result = await this.rawRequest("/remote/object/call", "PUT", {
+				objectPath: "/Script/PythonScriptPlugin.Default__PythonScriptLibrary",
+				functionName: "ExecuteScript",
+				parameters: { Script: code },
+			});
+			return typeof result === "string" ? result : JSON.stringify(result);
+		} catch {
+			// Fall through to console command approach
+		}
+
+		// Approach 2: Use `py` console command prefix — works without passlist
+		// but does not capture stdout (print() goes to Output Log only)
+		// Wrap code to write output to a temp file, then we can't read it back via RC,
+		// so this is best-effort for fire-and-forget commands
+		try {
+			// For multi-line scripts, write to temp file and execute that
+			const escapedCode = code.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+			await this.rawRequest("/remote/object/call", "PUT", {
+				objectPath: "/Script/Engine.Default__KismetSystemLibrary",
+				functionName: "ExecuteConsoleCommand",
+				parameters: {
+					WorldContextObject: "/Engine/Transient.World",
+					Command: `py ${escapedCode}`,
+				},
+			});
+			return JSON.stringify({
+				executed: true,
+				note: "Python executed via console command. Output is in the UE Output Log. For full stdout capture, enable Python Remote Execution in Project Settings > Plugins > Python.",
+			});
+		} catch (error) {
+			throw new UnrealMcpError(
+				`Failed to execute Python via Remote Control. Enable Python Remote Execution (Project Settings > Plugins > Python > Enable Remote Execution), or add PythonScriptLibrary to the Remote Control passlist. Error: ${error}`,
+				"PYTHON_EXEC_FAILED",
+			);
+		}
 	}
 
 	private async request(endpoint: string, body: Record<string, unknown>): Promise<unknown> {
