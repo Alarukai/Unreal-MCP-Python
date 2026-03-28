@@ -30,7 +30,7 @@ else:
     print(json.dumps({"error": "Failed to create level sequence"}))`,
 				{ name, path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -71,7 +71,7 @@ else:
     print(json.dumps({"error": "Sequence not found: {{sequence_path}}"}))`,
 				{ sequence_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -106,7 +106,7 @@ else:
     print(json.dumps({"error": "Sequence not found"}))`,
 				{ sequence_path, actor_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -153,7 +153,7 @@ else:
     print(json.dumps({"error": "Sequence not found"}))`,
 				{ sequence_path, binding_id },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -182,7 +182,7 @@ else:
     print(json.dumps({"error": "Sequence not found"}))`,
 				{ sequence_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -210,7 +210,7 @@ else:
     print(json.dumps({"error": "Sequence not found"}))`,
 				{ sequence_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -246,7 +246,7 @@ else:
     print(json.dumps({"error": "Sequence not found"}))`,
 				{ sequence_path, output_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -276,7 +276,7 @@ else:
     print(json.dumps({"error": "Sequence not found"}))`,
 				{ sequence_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

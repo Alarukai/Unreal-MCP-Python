@@ -42,7 +42,7 @@ for path in json.loads('{{paths_json}}'):
 print(json.dumps(results, indent=2))`,
 				{ paths_json: pathsJson },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -66,7 +66,7 @@ for path in json.loads('{{paths_json}}'):
 print(json.dumps(results, indent=2))`,
 				{ paths_json: pathsJson },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -91,7 +91,7 @@ for path in json.loads('{{paths_json}}'):
 print(json.dumps(results, indent=2))`,
 				{ paths_json: pathsJson, description },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -115,7 +115,7 @@ for path in json.loads('{{paths_json}}'):
 print(json.dumps(results, indent=2))`,
 				{ paths_json: pathsJson },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -139,7 +139,7 @@ for path in json.loads('{{paths_json}}'):
 print(json.dumps(results, indent=2))`,
 				{ paths_json: pathsJson },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -162,7 +162,7 @@ else:
     print(json.dumps({"path": "{{path}}", "status": "unmodified"}))`,
 				{ path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

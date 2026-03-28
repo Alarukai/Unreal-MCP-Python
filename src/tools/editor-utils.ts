@@ -29,7 +29,7 @@ else:
     print(json.dumps({"error": "Widget not found: {{widget_path}}"}))`,
 				{ widget_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -54,7 +54,7 @@ else:
     print(json.dumps({"error": "Blueprint not found: {{blueprint_path}}"}))`,
 				{ blueprint_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -86,7 +86,7 @@ else:
     print(json.dumps({"error": "StaticMesh not found: {{mesh_path}}"}))`,
 				{ mesh_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -123,7 +123,7 @@ else:
     print(json.dumps({"error": "StaticMesh not found: {{mesh_path}}"}))`,
 				{ mesh_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -149,7 +149,7 @@ else:
     print(json.dumps({"error": "StaticMesh not found: {{mesh_path}}"}))`,
 				{ mesh_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -160,7 +160,7 @@ else:
 import json
 success = unreal.SystemLibrary.execute_console_command(None, 'transaction undo')
 print(json.dumps({"undone": True}))`;
-		const result = await manager.python.execute(script);
+		const result = await manager.runPython(script);
 		return { content: [{ type: "text", text: result }] };
 	});
 
@@ -170,7 +170,7 @@ print(json.dumps({"undone": True}))`;
 import json
 success = unreal.SystemLibrary.execute_console_command(None, 'transaction redo')
 print(json.dumps({"redone": True}))`;
-		const result = await manager.python.execute(script);
+		const result = await manager.runPython(script);
 		return { content: [{ type: "text", text: result }] };
 	});
 
@@ -186,7 +186,7 @@ print(json.dumps({"redone": True}))`;
 import json
 # Transaction history is accessible via GEditor->Trans
 print(json.dumps({"hint": "Undo history available in Edit > Undo History window. Use undo/redo tools to navigate."}))`;
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

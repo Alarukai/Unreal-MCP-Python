@@ -32,7 +32,7 @@ if layers:
     print(json.dumps(result, indent=2))
 else:
     print(json.dumps({"error": "No DataLayerManager found. Is this a World Partition level?"}))`;
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -65,7 +65,7 @@ else:
     print(json.dumps({"error": "No DataLayerManager found"}))`,
 				{ layer_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -80,7 +80,7 @@ if wp:
     print(json.dumps({"success": True, "has_world_partition": True, "hint": "World Partition cell info available in editor World Partition window"}))
 else:
     print(json.dumps({"has_world_partition": False}))`;
-		const result = await manager.python.execute(script);
+		const result = await manager.runPython(script);
 		return { content: [{ type: "text", text: result }] };
 	});
 
@@ -110,7 +110,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
 				{ actor_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

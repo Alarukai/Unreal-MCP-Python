@@ -23,7 +23,7 @@ with open(project_path, 'r') as f:
 plugins = project.get('Plugins', [])
 result = [{"name": p.get("Name"), "enabled": p.get("Enabled", True)} for p in plugins]
 print(json.dumps(result, indent=2))`;
-		const result = await manager.python.execute(script);
+		const result = await manager.runPython(script);
 		return { content: [{ type: "text", text: result }] };
 	});
 
@@ -60,7 +60,7 @@ with open(project_path, 'w') as f:
 print(json.dumps({"success": True, "plugin": "{{plugin_name}}", "hint": "Restart the editor for the change to take effect"}))`,
 				{ plugin_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -98,7 +98,7 @@ with open(project_path, 'w') as f:
 print(json.dumps({"success": True, "plugin": "{{plugin_name}}", "hint": "Restart the editor for the change to take effect"}))`,
 				{ plugin_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

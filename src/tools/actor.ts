@@ -40,7 +40,7 @@ for a in actors:
 print(json.dumps(results, indent=2))`,
 				{ class_filter: class_filter || "", name_filter: name_filter || "" },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -107,7 +107,7 @@ else:
 					scale_z: scale?.z ?? 1,
 				},
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -134,7 +134,7 @@ for a in actors:
 print(json.dumps({"deleted": deleted, "name": "{{name}}"}))`,
 				{ name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -173,7 +173,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{name}}"}))`,
 				{ name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -227,7 +227,7 @@ if not found:
 					scale_z: scale?.z ?? 1,
 				},
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -276,7 +276,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{name}}"}))`,
 				{ name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -304,7 +304,7 @@ subsys.set_selected_level_actors(to_select)
 print(json.dumps({"selected": len(to_select)}))`,
 				{ names_json: namesJson },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -345,7 +345,7 @@ print(json.dumps({"duplicated": duplicated}))`,
 					off_z: offset?.z ?? 0,
 				},
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -375,7 +375,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{name}}"}))`,
 				{ name, tags_json: tagsJson },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

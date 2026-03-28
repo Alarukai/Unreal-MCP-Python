@@ -108,6 +108,34 @@ export class ConnectionManager {
 	}
 
 	/**
+	 * Execute Python code using the best available transport.
+	 * Tries: Python Remote Execution → Remote Control API executePython.
+	 * This is the primary method tools should use instead of calling manager.python.execute() directly.
+	 */
+	async runPython(code: string): Promise<string> {
+		// Try Python Remote Execution first (full stdout capture)
+		if (this._status.pythonExec) {
+			try {
+				return await this.python.execute(code);
+			} catch (error) {
+				// If Python exec fails, fall through to RC if available
+				if (!this._status.remoteControl) throw error;
+				console.error(`[unreal-mcp] Python exec failed, falling back to Remote Control: ${error}`);
+			}
+		}
+
+		// Fall back to Remote Control API
+		if (this._status.remoteControl) {
+			return this.rc.executePython(code);
+		}
+
+		throw new Error(
+			"No Python execution transport available. Enable Python Editor Script Plugin with Remote Execution, " +
+				"or enable the Remote Control API plugin.",
+		);
+	}
+
+	/**
 	 * Execute an operation with plugin-first, Python-fallback strategy.
 	 *
 	 * If the plugin is available and supports the given command, it is used.

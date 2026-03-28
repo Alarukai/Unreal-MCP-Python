@@ -15,7 +15,7 @@ export function registerConsoleTools(
 		{ code: z.string().describe("Python code to execute in the editor") },
 		async ({ code }) => {
 			manager.requireEditor();
-			const result = await manager.python.execute(code);
+			const result = await manager.runPython(code);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -31,7 +31,7 @@ export function registerConsoleTools(
 				`import unreal\nunreal.SystemLibrary.execute_console_command(None, '{{command}}')`,
 				{ command },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result || `Executed: ${command}` }] };
 		},
 	);
@@ -56,7 +56,7 @@ unreal.AutomationLibrary.take_high_res_screenshot(640, 520, path)
 print(path)`,
 				{ filename: fname },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -79,7 +79,7 @@ if vp:
     print(json.dumps(result))
 else:
     print(json.dumps({"error": "Could not get viewport camera"}))`;
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -123,7 +123,7 @@ if loc is not None and rot is not None:
     print("Camera updated")
 else:
     print("Provide both location and rotation")`;
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

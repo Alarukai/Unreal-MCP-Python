@@ -23,7 +23,7 @@ import json
 # Use console command to list tests
 unreal.SystemLibrary.execute_console_command(None, 'automation list')
 print(json.dumps({"hint": "Check Output Log for test list. Use run_automation_test with test name to execute."}))`;
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -43,7 +43,7 @@ unreal.SystemLibrary.execute_console_command(None, 'automation run {{test_name}}
 print(json.dumps({"started": True, "test": "{{test_name}}", "hint": "Check Output Log for test results"}))`,
 				{ test_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -54,7 +54,7 @@ print(json.dumps({"started": True, "test": "{{test_name}}", "hint": "Check Outpu
 import json
 unreal.SystemLibrary.execute_console_command(None, 'automation runall')
 print(json.dumps({"started": True, "hint": "Check Output Log for test results"}))`;
-		const result = await manager.python.execute(script);
+		const result = await manager.runPython(script);
 		return { content: [{ type: "text", text: result }] };
 	});
 
@@ -64,7 +64,7 @@ print(json.dumps({"started": True, "hint": "Check Output Log for test results"})
 import json
 unreal.SystemLibrary.execute_console_command(None, 'map check')
 print(json.dumps({"success": True, "hint": "Check Message Log for Map Check results"}))`;
-		const result = await manager.python.execute(script);
+		const result = await manager.runPython(script);
 		return { content: [{ type: "text", text: result }] };
 	});
 
@@ -85,7 +85,7 @@ count = min(len(asset_paths), 100)
 print(json.dumps({"validating": count, "directory": "{{directory}}"}))`,
 				{ directory },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -136,7 +136,7 @@ unreal.SystemLibrary.execute_console_command(None, 'automation run {{category}}'
 print(json.dumps({"started": True, "category": "{{category}}"}))`,
 				{ category },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -151,7 +151,7 @@ print(json.dumps({"started": True, "category": "{{category}}"}))`,
 import json
 # Query automation results via the automation controller
 print(json.dumps({"hint": "Automation test results are available in the Session Frontend and Output Log. Use 'automation list' to see test status."}))`;
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

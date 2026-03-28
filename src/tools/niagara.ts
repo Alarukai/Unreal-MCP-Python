@@ -41,7 +41,7 @@ else:
     print(json.dumps({"error": "Niagara system not found: {{system_path}}"}))`,
 				{ system_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -81,7 +81,7 @@ else:
     print(json.dumps({"error": "Niagara system not found"}))`,
 				{ system_path, actor_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -113,7 +113,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
 				{ actor_name, parameter_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -145,7 +145,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
 				{ actor_name, parameter_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -179,7 +179,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
 				{ actor_name, parameter_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -211,7 +211,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
 				{ actor_name, parameter_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -241,7 +241,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
 				{ actor_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -271,7 +271,7 @@ else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
 				{ actor_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

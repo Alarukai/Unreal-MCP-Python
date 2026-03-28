@@ -30,7 +30,7 @@ else:
     print(json.dumps({"error": "Failed to create material"}))`,
 				{ name, path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -66,7 +66,7 @@ else:
         print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
 				{ actor_name, material_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -105,7 +105,7 @@ else:
     print(json.dumps({"error": "Material not found: {{material_path}}"}))`,
 				{ material_path, expression_class },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -163,7 +163,7 @@ else:
 					to_input_name,
 				},
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -217,7 +217,7 @@ else:
     print(json.dumps({"error": "Material not found"}))`,
 				{ material_path, expression_name, material_property, output_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -249,7 +249,7 @@ else:
     print(json.dumps({"error": "Material not found"}))`,
 				{ material_path, expression_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -275,7 +275,7 @@ else:
     print(json.dumps({"error": "Material not found"}))`,
 				{ material_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -307,7 +307,7 @@ else:
     print(json.dumps({"error": "Parent material not found"}))`,
 				{ name, parent_path, path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -334,7 +334,7 @@ else:
     print(json.dumps({"error": "Material instance not found"}))`,
 				{ instance_path, parameter_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -364,7 +364,7 @@ else:
     print(json.dumps({"error": "Material instance not found"}))`,
 				{ instance_path, parameter_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -392,7 +392,7 @@ else:
     print(json.dumps({"error": "Material instance or texture not found"}))`,
 				{ instance_path, parameter_name, texture_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -418,7 +418,7 @@ else:
     print(json.dumps({"error": "Material not found"}))`,
 				{ material_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -444,7 +444,7 @@ else:
     print(json.dumps({"error": "Failed to create material function"}))`,
 				{ name, path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

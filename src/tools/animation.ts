@@ -36,7 +36,7 @@ else:
     print(json.dumps({"error": "Skeleton not found: {{skeleton_path}}"}))`,
 				{ name, skeleton_path, path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -66,7 +66,7 @@ else:
     print(json.dumps({"error": "AnimSequence not found: {{sequence_path}}"}))`,
 				{ sequence_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -98,7 +98,7 @@ else:
     print(json.dumps({"error": "AnimSequence not found: {{sequence_path}}"}))`,
 				{ name, sequence_path, path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -127,7 +127,7 @@ else:
     print(json.dumps({"error": "SkeletalMesh not found: {{mesh_path}}"}))`,
 				{ mesh_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -151,7 +151,7 @@ else:
     print(json.dumps({"error": "Mesh not found: {{mesh_path}}"}))`,
 				{ mesh_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -182,7 +182,7 @@ else:
     print(json.dumps({"error": "AnimSequence not found"}))`,
 				{ sequence_path, modifier_class },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

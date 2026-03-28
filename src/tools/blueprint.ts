@@ -47,7 +47,7 @@ else:
     print(json.dumps({"error": "Failed to create Blueprint"}))`,
 				{ name, parent_class, path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -103,7 +103,7 @@ else:
     print(json.dumps({"error": "Blueprint not found: {{blueprint_path}}"}))`,
 				{ blueprint_path, component_class, cname, component_name: cname },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -153,7 +153,7 @@ else:
     print(json.dumps({"error": "Blueprint not found"}))`,
 				{ blueprint_path, variable_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -301,7 +301,7 @@ else:
     print(json.dumps({"error": "Blueprint not found"}))`,
 				{ blueprint_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -326,7 +326,7 @@ else:
     print(json.dumps({"error": "Blueprint not found: {{blueprint_path}}"}))`,
 				{ blueprint_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -358,7 +358,7 @@ else:
     print(json.dumps({"error": "Blueprint not found: {{blueprint_path}}"}))`,
 				{ blueprint_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -407,7 +407,7 @@ else:
 					rot_roll: rotation.roll,
 				},
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -442,7 +442,7 @@ else:
     print(json.dumps({"error": "Blueprint not found"}))`,
 				{ blueprint_path, function_name },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -478,7 +478,7 @@ else:
     print(json.dumps({"error": "Blueprint not found"}))`,
 				{ blueprint_path, property_name, property_value },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

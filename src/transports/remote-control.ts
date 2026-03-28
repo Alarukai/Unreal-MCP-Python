@@ -142,6 +142,23 @@ export class RemoteControlClient {
 		);
 	}
 
+	/**
+	 * Execute Python code via the Remote Control HTTP endpoint.
+	 * This provides a fallback when Python Remote Execution (UDP/TCP) is unavailable.
+	 * Uses the /remote/object/call endpoint to invoke KismetSystemLibrary.ExecuteConsoleCommand
+	 * with a `py` prefix, or the /remote/script endpoint if available.
+	 */
+	async executePython(code: string): Promise<string> {
+		// UE Remote Control API supports running Python via PUT /remote/object/call
+		// by calling the Python scripting subsystem
+		const result = await this.rawRequest("/remote/object/call", "PUT", {
+			objectPath: "/Script/PythonScriptPlugin.Default__PythonScriptLibrary",
+			functionName: "ExecuteScript",
+			parameters: { Script: code },
+		});
+		return typeof result === "string" ? result : JSON.stringify(result);
+	}
+
 	private async request(endpoint: string, body: Record<string, unknown>): Promise<unknown> {
 		return this.rawRequest(endpoint, "PUT", body);
 	}

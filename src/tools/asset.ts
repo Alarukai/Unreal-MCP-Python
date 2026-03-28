@@ -47,7 +47,7 @@ for a in assets:
 print(json.dumps(results[:500], indent=2))`,
 				{ directory, class_filter: class_filter || "", recursive: recursive ? "True" : "False" },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -82,7 +82,7 @@ for a in assets:
 print(json.dumps(results, indent=2))`,
 				{ query, class_filter: class_filter || "" },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -112,7 +112,7 @@ else:
     print(json.dumps({"error": "Asset not found: {{asset_path}}"}))`,
 				{ asset_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -141,7 +141,7 @@ if '${direction}' in ('referencers', 'both'):
 print(json.dumps(result, indent=2))`,
 				{ asset_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -162,7 +162,7 @@ success = unreal.EditorAssetLibrary.rename_asset('{{source_path}}', '{{destinati
 print(json.dumps({"success": success}))`,
 				{ source_path, destination_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -183,7 +183,7 @@ result = unreal.EditorAssetLibrary.duplicate_asset('{{source_path}}', '{{destina
 print(json.dumps({"success": result is not None, "path": '{{destination_path}}' if result else None}))`,
 				{ source_path, destination_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -210,7 +210,7 @@ else:
     print(json.dumps({"deleted": success}))`,
 				{ asset_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -242,7 +242,7 @@ else:
     print(json.dumps({"success": False, "error": "Import failed"}))`,
 				{ source_file, destination_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -268,7 +268,7 @@ success = unreal.Exporter.run_asset_export_task(task)
 print(json.dumps({"success": success, "output": '{{output_path}}'}))`,
 				{ asset_path, output_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -296,7 +296,7 @@ results = subsys.validate_assets_with_settings(
 print(json.dumps({"validated": True}))`,
 				{ directory },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -316,7 +316,7 @@ success = unreal.EditorAssetLibrary.save_asset('{{asset_path}}')
 print(json.dumps({"saved": success}))`,
 				{ asset_path },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -327,7 +327,7 @@ print(json.dumps({"saved": success}))`,
 import json
 unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)
 print(json.dumps({"success": True}))`;
-		const result = await manager.python.execute(script);
+		const result = await manager.runPython(script);
 		return { content: [{ type: "text", text: result }] };
 	});
 
@@ -419,7 +419,7 @@ else:
     print(json.dumps({"error": "Could not load target or source assets"}))`,
 				{ target_path, source_paths_json: sourcePathsJson },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);

@@ -30,7 +30,7 @@ unreal.SystemLibrary.execute_console_command(None, 'trace.start {{channels}}')
 print(json.dumps({"started": True, "channels": "{{channels}}"}))`,
 				{ channels: channelStr },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -41,7 +41,7 @@ print(json.dumps({"started": True, "channels": "{{channels}}"}))`,
 import json
 unreal.SystemLibrary.execute_console_command(None, 'trace.stop')
 print(json.dumps({"stopped": True}))`;
-		const result = await manager.python.execute(script);
+		const result = await manager.runPython(script);
 		return { content: [{ type: "text", text: result }] };
 	});
 
@@ -62,7 +62,7 @@ unreal.SystemLibrary.execute_console_command(None, 'stat {{stat}}')
 print(json.dumps({"executed": "stat {{stat}}"}))`,
 				{ stat },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -83,7 +83,7 @@ unreal.SystemLibrary.execute_console_command(None, '{{cmd}}')
 print(json.dumps({"started": True}))`,
 				{ cmd },
 			);
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
@@ -98,7 +98,7 @@ print(json.dumps({"started": True}))`,
 import json
 unreal.SystemLibrary.execute_console_command(None, 'csvprofile stop')
 print(json.dumps({"stopped": True, "hint": "CSV output saved to Saved/Profiling/CSV/"}))`;
-			const result = await manager.python.execute(script);
+			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
