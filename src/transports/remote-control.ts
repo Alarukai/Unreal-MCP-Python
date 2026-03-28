@@ -147,28 +147,38 @@ export class RemoteControlClient {
 	 * This provides a fallback when Python Remote Execution (UDP/TCP) is unavailable.
 	 *
 	 * Tries multiple approaches in order:
-	 * 1. /remote/object/call on PythonScriptLibrary (needs RC passlist entry)
-	 * 2. Console command with `py` prefix (works but no stdout capture)
+	 * 1. PUT /remote/script/execute — dedicated RC Python endpoint (requires "Enable Remote Python Execution" in RC settings)
+	 * 2. PUT /remote/object/call with PythonScriptLibrary.ExecutePythonCommand
+	 * 3. Console command with `py` prefix (works but no stdout capture)
 	 */
 	async executePython(code: string): Promise<string> {
-		// Approach 1: Call PythonScriptLibrary directly (richest, but may need passlist config)
+		// Approach 1: Dedicated RC Python endpoint (UE 5.x with Remote Python Execution enabled)
 		try {
-			const result = await this.rawRequest("/remote/object/call", "PUT", {
-				objectPath: "/Script/PythonScriptPlugin.Default__PythonScriptLibrary",
-				functionName: "ExecuteScript",
-				parameters: { Script: code },
+			const result = await this.rawRequest("/remote/script/execute", "PUT", {
+				Script: code,
 			});
 			return typeof result === "string" ? result : JSON.stringify(result);
 		} catch {
-			// Fall through to console command approach
+			// Fall through
 		}
 
-		// Approach 2: Use `py` console command prefix — works without passlist
-		// but does not capture stdout (print() goes to Output Log only)
-		// Wrap code to write output to a temp file, then we can't read it back via RC,
-		// so this is best-effort for fire-and-forget commands
+		// Approach 2: Call PythonScriptLibrary with various function names
+		for (const functionName of ["ExecutePythonCommand", "ExecutePythonScript", "ExecuteScript"]) {
+			try {
+				const result = await this.rawRequest("/remote/object/call", "PUT", {
+					objectPath: "/Script/PythonScriptPlugin.Default__PythonScriptLibrary",
+					functionName,
+					parameters: { PythonCommand: code },
+				});
+				return typeof result === "string" ? result : JSON.stringify(result);
+			} catch {
+				// Try next function name
+			}
+		}
+
+		// Approach 3: Use `py` console command prefix — works without special config
+		// but stdout goes to UE Output Log only, not returned to caller
 		try {
-			// For multi-line scripts, write to temp file and execute that
 			const escapedCode = code.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
 			await this.rawRequest("/remote/object/call", "PUT", {
 				objectPath: "/Script/Engine.Default__KismetSystemLibrary",
@@ -184,7 +194,7 @@ export class RemoteControlClient {
 			});
 		} catch (error) {
 			throw new UnrealMcpError(
-				`Failed to execute Python via Remote Control. Enable Python Remote Execution (Project Settings > Plugins > Python > Enable Remote Execution), or add PythonScriptLibrary to the Remote Control passlist. Error: ${error}`,
+				`Failed to execute Python via Remote Control. Enable Python Remote Execution (Project Settings > Plugins > Python > Enable Remote Execution). Error: ${error}`,
 				"PYTHON_EXEC_FAILED",
 			);
 		}
