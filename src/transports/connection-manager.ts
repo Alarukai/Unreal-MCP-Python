@@ -33,6 +33,7 @@ export class ConnectionManager {
 			host: "127.0.0.1",
 			port: config.pythonExecPort,
 			timeout: config.timeouts.pythonExec,
+			multicastBindAddress: config.multicastBindAddress,
 		});
 
 		this.plugin = new PluginBridgeClient({

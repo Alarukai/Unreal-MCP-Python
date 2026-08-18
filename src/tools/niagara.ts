@@ -29,17 +29,26 @@ export function registerNiagaraTools(
 import json
 system = unreal.EditorAssetLibrary.load_asset('{{system_path}}')
 if system:
-    loc = unreal.Vector(${location.x}, ${location.y}, ${location.z})
-    rot = unreal.Rotator(${rotation.pitch}, ${rotation.yaw}, ${rotation.roll})
+    loc = unreal.Vector({{loc_x}}, {{loc_y}}, {{loc_z}})
+    rot = unreal.Rotator({{rot_pitch}}, {{rot_yaw}}, {{rot_roll}})
     world = unreal.EditorLevelLibrary.get_editor_world()
-    comp = unreal.NiagaraFunctionLibrary.spawn_system_at_location(world, system, loc, rot, unreal.Vector(1,1,1), ${auto_destroy ? "True" : "False"})
+    comp = unreal.NiagaraFunctionLibrary.spawn_system_at_location(world, system, loc, rot, unreal.Vector(1,1,1), {{auto_destroy}})
     if comp:
         print(json.dumps({"success": True, "component": comp.get_name()}))
     else:
         print(json.dumps({"error": "Failed to spawn Niagara system"}))
 else:
     print(json.dumps({"error": "Niagara system not found: {{system_path}}"}))`,
-				{ system_path },
+				{
+					system_path,
+					loc_x: location.x,
+					loc_y: location.y,
+					loc_z: location.z,
+					rot_pitch: rotation.pitch,
+					rot_yaw: rotation.yaw,
+					rot_roll: rotation.roll,
+					auto_destroy: auto_destroy ? "True" : "False",
+				},
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -104,14 +113,14 @@ for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)
         if comps:
-            comps[0].set_niagara_variable_float('{{parameter_name}}', ${value})
+            comps[0].set_niagara_variable_float('{{parameter_name}}', {{value}})
             print(json.dumps({"success": True}))
         else:
             print(json.dumps({"error": "No Niagara component found"}))
         break
 else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
-				{ actor_name, parameter_name },
+				{ actor_name, parameter_name, value },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -136,14 +145,14 @@ for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)
         if comps:
-            comps[0].set_niagara_variable_vec3('{{parameter_name}}', unreal.Vector(${value.x}, ${value.y}, ${value.z}))
+            comps[0].set_niagara_variable_vec3('{{parameter_name}}', unreal.Vector({{value_x}}, {{value_y}}, {{value_z}}))
             print(json.dumps({"success": True}))
         else:
             print(json.dumps({"error": "No Niagara component found"}))
         break
 else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
-				{ actor_name, parameter_name },
+				{ actor_name, parameter_name, value_x: value.x, value_y: value.y, value_z: value.z },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -170,14 +179,21 @@ for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)
         if comps:
-            comps[0].set_niagara_variable_linear_color('{{parameter_name}}', unreal.LinearColor(${value.r}, ${value.g}, ${value.b}, ${value.a}))
+            comps[0].set_niagara_variable_linear_color('{{parameter_name}}', unreal.LinearColor({{value_r}}, {{value_g}}, {{value_b}}, {{value_a}}))
             print(json.dumps({"success": True}))
         else:
             print(json.dumps({"error": "No Niagara component found"}))
         break
 else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
-				{ actor_name, parameter_name },
+				{
+					actor_name,
+					parameter_name,
+					value_r: value.r,
+					value_g: value.g,
+					value_b: value.b,
+					value_a: value.a,
+				},
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -202,14 +218,14 @@ for a in actors:
     if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
         comps = a.get_components_by_class(unreal.NiagaraComponent)
         if comps:
-            comps[0].set_variable_bool('{{parameter_name}}', ${value ? "True" : "False"})
+            comps[0].set_variable_bool('{{parameter_name}}', {{value}})
             print(json.dumps({"success": True}))
         else:
             print(json.dumps({"error": "No Niagara component found"}))
         break
 else:
     print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
-				{ actor_name, parameter_name },
+				{ actor_name, parameter_name, value: value ? "True" : "False" },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };

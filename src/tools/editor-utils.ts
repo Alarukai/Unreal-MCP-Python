@@ -75,16 +75,16 @@ mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
 if mesh and isinstance(mesh, unreal.StaticMesh):
     lib = unreal.EditorStaticMeshLibrary
     options = unreal.EditorScriptingMeshReductionOptions()
-    for i in range(1, ${lod_count}):
+    for i in range(1, {{lod_count}}):
         reduction = unreal.EditorScriptingMeshReductionPerLODSettings()
         reduction.percent_triangles = max(0.1, 1.0 - (i * 0.3))
         options.reduction_options.append(reduction)
-    lib.set_lod_reduction_settings(mesh, ${lod_count - 1}, options)
+    lib.set_lod_reduction_settings(mesh, {{lod_count_minus_1}}, options)
     unreal.EditorAssetLibrary.save_asset('{{mesh_path}}')
-    print(json.dumps({"success": True, "lods": ${lod_count}}))
+    print(json.dumps({"success": True, "lods": {{lod_count}}}))
 else:
     print(json.dumps({"error": "StaticMesh not found: {{mesh_path}}"}))`,
-				{ mesh_path },
+				{ mesh_path, lod_count, lod_count_minus_1: lod_count - 1 },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -109,19 +109,19 @@ import json
 mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
 if mesh and isinstance(mesh, unreal.StaticMesh):
     lib = unreal.EditorStaticMeshLibrary
-    if '${type}' == 'box':
+    if '{{type}}' == 'box':
         lib.add_simple_collisions(mesh, unreal.ScriptingCollisionShapeType.BOX)
-    elif '${type}' == 'sphere':
+    elif '{{type}}' == 'sphere':
         lib.add_simple_collisions(mesh, unreal.ScriptingCollisionShapeType.SPHERE)
-    elif '${type}' == 'capsule':
+    elif '{{type}}' == 'capsule':
         lib.add_simple_collisions(mesh, unreal.ScriptingCollisionShapeType.CAPSULE)
     else:
         lib.set_convex_decomposition_collisions(mesh, 4, 16)
     unreal.EditorAssetLibrary.save_asset('{{mesh_path}}')
-    print(json.dumps({"success": True, "type": "${type}"}))
+    print(json.dumps({"success": True, "type": "{{type}}"}))
 else:
     print(json.dumps({"error": "StaticMesh not found: {{mesh_path}}"}))`,
-				{ mesh_path },
+				{ mesh_path, type },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };

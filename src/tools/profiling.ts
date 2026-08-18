@@ -75,13 +75,28 @@ print(json.dumps({"executed": "stat {{stat}}"}))`,
 		},
 		async ({ filename }) => {
 			manager.requireEditor();
-			const cmd = filename ? `csvprofile start ${filename}` : "csvprofile start";
+			if (filename && !/^[\w.-]+$/.test(filename)) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify({
+								error:
+									"Invalid filename: only letters, digits, '.', '_', and '-' are allowed (no path separators).",
+							}),
+						},
+					],
+					isError: true,
+				};
+			}
 			const script = inlineScript(
 				`import unreal
 import json
-unreal.SystemLibrary.execute_console_command(None, '{{cmd}}')
+filename = '{{filename}}'
+cmd = 'csvprofile start ' + filename if filename else 'csvprofile start'
+unreal.SystemLibrary.execute_console_command(None, cmd)
 print(json.dumps({"started": True}))`,
-				{ cmd },
+				{ filename: filename || "" },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };

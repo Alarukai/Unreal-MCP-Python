@@ -15,9 +15,8 @@ export function registerTestingTools(
 		{
 			filter: z.string().optional().describe("Filter tests by name substring"),
 		},
-		async ({ filter }) => {
+		async () => {
 			manager.requireEditor();
-			const filterLine = filter ? `if '${filter}'.lower() in name.lower()` : "";
 			const script = `import unreal
 import json
 # Use console command to list tests

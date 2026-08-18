@@ -57,14 +57,14 @@ else:
         if a.get_name() == '{{actor_name}}' or a.get_actor_label() == '{{actor_name}}':
             comps = a.get_components_by_class(unreal.MeshComponent)
             if comps:
-                comps[0].set_material(${slot_index}, material)
+                comps[0].set_material({{slot_index}}, material)
                 print(json.dumps({"success": True}))
             else:
                 print(json.dumps({"error": "No mesh component found"}))
             break
     else:
         print(json.dumps({"error": "Actor not found: {{actor_name}}"}))`,
-				{ actor_name, material_path },
+				{ actor_name, material_path, slot_index },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -94,7 +94,7 @@ material = unreal.EditorAssetLibrary.load_asset('{{material_path}}')
 if material:
     expr_class = getattr(unreal, '{{expression_class}}', None)
     if expr_class:
-        expr = mel.create_material_expression(material, expr_class, ${x}, ${y})
+        expr = mel.create_material_expression(material, expr_class, {{x}}, {{y}})
         if expr:
             print(json.dumps({"success": True, "name": expr.get_name(), "class": "{{expression_class}}"}))
         else:
@@ -103,7 +103,7 @@ if material:
         print(json.dumps({"error": "Expression class not found: {{expression_class}}"}))
 else:
     print(json.dumps({"error": "Material not found: {{material_path}}"}))`,
-				{ material_path, expression_class },
+				{ material_path, expression_class, x, y },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -328,11 +328,11 @@ import json
 mel = unreal.MaterialEditingLibrary
 mi = unreal.EditorAssetLibrary.load_asset('{{instance_path}}')
 if mi:
-    mel.set_material_instance_scalar_parameter_value(mi, '{{parameter_name}}', ${value})
+    mel.set_material_instance_scalar_parameter_value(mi, '{{parameter_name}}', {{value}})
     print(json.dumps({"success": True}))
 else:
     print(json.dumps({"error": "Material instance not found"}))`,
-				{ instance_path, parameter_name },
+				{ instance_path, parameter_name, value },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -357,12 +357,19 @@ import json
 mel = unreal.MaterialEditingLibrary
 mi = unreal.EditorAssetLibrary.load_asset('{{instance_path}}')
 if mi:
-    color = unreal.LinearColor(${value.r}, ${value.g}, ${value.b}, ${value.a})
+    color = unreal.LinearColor({{value_r}}, {{value_g}}, {{value_b}}, {{value_a}})
     mel.set_material_instance_vector_parameter_value(mi, '{{parameter_name}}', color)
     print(json.dumps({"success": True}))
 else:
     print(json.dumps({"error": "Material instance not found"}))`,
-				{ instance_path, parameter_name },
+				{
+					instance_path,
+					parameter_name,
+					value_r: value.r,
+					value_g: value.g,
+					value_b: value.b,
+					value_a: value.a,
+				},
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };

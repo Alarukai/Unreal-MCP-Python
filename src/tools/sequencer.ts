@@ -140,10 +140,10 @@ if seq:
     movie_scene = seq.get_movie_scene()
     for binding in seq.get_bindings():
         if str(binding.get_id()) == '{{binding_id}}':
-            track_class = getattr(unreal, '${track_type}')
+            track_class = getattr(unreal, '{{track_type}}')
             track = binding.add_track(track_class)
             if track:
-                print(json.dumps({"success": True, "track": track.get_name(), "class": "${track_type}"}))
+                print(json.dumps({"success": True, "track": track.get_name(), "class": "{{track_type}}"}))
             else:
                 print(json.dumps({"error": "Failed to add track"}))
             break
@@ -151,7 +151,7 @@ if seq:
         print(json.dumps({"error": "Binding not found: {{binding_id}}"}))
 else:
     print(json.dumps({"error": "Sequence not found"}))`,
-				{ sequence_path, binding_id },
+				{ sequence_path, binding_id, track_type },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -174,13 +174,13 @@ import json
 seq = unreal.EditorAssetLibrary.load_asset('{{sequence_path}}')
 if seq:
     movie_scene = seq.get_movie_scene()
-    movie_scene.set_playback_start(${start_frame})
-    movie_scene.set_playback_end(${end_frame})
+    movie_scene.set_playback_start({{start_frame}})
+    movie_scene.set_playback_end({{end_frame}})
     unreal.EditorAssetLibrary.save_asset('{{sequence_path}}')
-    print(json.dumps({"success": True, "start": ${start_frame}, "end": ${end_frame}}))
+    print(json.dumps({"success": True, "start": {{start_frame}}, "end": {{end_frame}}}))
 else:
     print(json.dumps({"error": "Sequence not found"}))`,
-				{ sequence_path },
+				{ sequence_path, start_frame, end_frame },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -202,13 +202,13 @@ import json
 seq = unreal.EditorAssetLibrary.load_asset('{{sequence_path}}')
 if seq:
     movie_scene = seq.get_movie_scene()
-    rate = unreal.FrameRate(${fps}, 1)
+    rate = unreal.FrameRate({{fps}}, 1)
     movie_scene.set_display_rate(rate)
     unreal.EditorAssetLibrary.save_asset('{{sequence_path}}')
-    print(json.dumps({"success": True, "fps": ${fps}}))
+    print(json.dumps({"success": True, "fps": {{fps}}}))
 else:
     print(json.dumps({"error": "Sequence not found"}))`,
-				{ sequence_path },
+				{ sequence_path, fps },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };

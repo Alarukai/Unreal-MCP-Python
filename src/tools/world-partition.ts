@@ -55,15 +55,15 @@ if manager:
     layers = manager.get_all_data_layers()
     for layer in layers:
         if layer.get_data_layer_short_name() == '{{layer_name}}':
-            state_enum = getattr(unreal.DataLayerRuntimeState, '${state}')
+            state_enum = getattr(unreal.DataLayerRuntimeState, '{{state}}')
             manager.set_data_layer_runtime_state(layer, state_enum)
-            print(json.dumps({"success": True, "layer": "{{layer_name}}", "state": "${state}"}))
+            print(json.dumps({"success": True, "layer": "{{layer_name}}", "state": "{{state}}"}))
             break
     else:
         print(json.dumps({"error": "Data layer not found: {{layer_name}}"}))
 else:
     print(json.dumps({"error": "No DataLayerManager found"}))`,
-				{ layer_name },
+				{ layer_name, state },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };

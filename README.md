@@ -128,6 +128,7 @@ Three-layer priority: CLI args > environment variables > config file > defaults.
 | `UNREAL_MCP_ENGINE_PATH` | auto-detect | UE engine install path |
 | `UNREAL_MCP_RC_PORT` | 30010 | Remote Control API port |
 | `UNREAL_MCP_PYTHON_PORT` | 6776 | Python Remote Execution port |
+| `UNREAL_MCP_MULTICAST_BIND` | 127.0.0.1 | Bind address for the Python Remote Execution discovery socket. See the security warning above before setting this to `0.0.0.0`. |
 | `UNREAL_MCP_PLATFORM` | Win64 | Target platform |
 | `UNREAL_MCP_CONFIGURATION` | Development | Build configuration |
 | `UNREAL_MCP_MODULES` | all | Comma-separated list of modules to enable |
@@ -135,7 +136,7 @@ Three-layer priority: CLI args > environment variables > config file > defaults.
 ### CLI Arguments
 
 ```bash
-node dist/bin.js --project-path /path/to/project --engine-path /path/to/UE_5.5 --rc-port 30010
+node dist/bin.js --project-path /path/to/project --engine-path /path/to/UE_5.5 --rc-port 30010 --multicast-bind 127.0.0.1
 ```
 
 ### Config File
@@ -151,6 +152,18 @@ Place `.unrealmcp.json` in your project directory or home directory:
 }
 ```
 
+**Least privilege:** only enable the modules you actually use. The default (no
+`enabledModules` set) turns on all 16 modules, including ones with real destructive/system
+reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s plugin list,
+`source-control` checks in/reverts files). A tighter example for day-to-day level/content work:
+
+```json
+{
+  "projectPath": ".",
+  "enabledModules": ["console", "actor", "asset", "blueprint", "material"]
+}
+```
+
 ## Unreal Editor Setup
 
 ### Required (for most tools)
@@ -159,9 +172,34 @@ Place `.unrealmcp.json` in your project directory or home directory:
 2. Restart the editor
 3. Edit > Project Settings > Plugins > **Python** > scroll to **Remote Execution** section:
    - Check **Enable Remote Execution**
-   - **UE 5.3+ IMPORTANT:** Change **Multicast Bind Address** from `127.0.0.1` to `0.0.0.0` — Epic changed the default in 5.3 and it breaks external tools
+   - **UE 5.3+:** If discovery fails with `127.0.0.1`, you may need to change **Multicast Bind Address** to `0.0.0.0` — Epic changed the default in 5.3 and it can break discovery between the editor and external tools, even on the same machine (WSL/VPN/multi-adapter setups are the usual cause).
    - Verify Multicast Group Endpoint is `239.0.0.1:6766`
 4. Restart the editor again
+
+> ⚠️ **Security warning — read before changing Multicast Bind Address to `0.0.0.0`.**
+> UE's Python Remote Execution protocol has **no authentication**. Whoever can reach it gets
+> arbitrary code execution inside the editor process (file system, shell, engine content —
+> everything the editor process can do). Binding to `0.0.0.0` makes the editor's multicast
+> socket listen on **every network interface**, not just loopback — including your LAN/Wi-Fi
+> adapter. Anyone on the same network segment can then trick the editor into connecting out to
+> them and executing their Python code (the protocol is "inverted": the editor dials out to
+> whoever announced itself over multicast, with no identity check).
+>
+> Try `127.0.0.1` first — it works for the common case (this MCP server and the editor on the
+> same machine, same network namespace). Only switch to `0.0.0.0` if discovery genuinely fails,
+> and if you do:
+> - Add a firewall rule that blocks inbound UDP 6766 and TCP 6776 from anything but
+>   `127.0.0.1`/the loopback adapter (Windows Firewall: scope the allow rule to "Local subnet"
+>   removed, "These IP addresses: 127.0.0.1" only), rather than leaving the ports reachable from
+>   the whole LAN.
+> - Never do this on an untrusted network (coffee shop Wi-Fi, conference network, shared office
+>   LAN without device isolation).
+> - Treat it as equivalent to leaving a root shell open on your network — because that's
+>   effectively what it is.
+>
+> This server itself only ever connects to `127.0.0.1` (hardcoded, not configurable) — the
+> exposure described above is purely a property of the UE editor's own setting, which this
+> README used to recommend widening without this warning.
 
 **Still getting "No Unreal Editor nodes found"?**
 - **VPN/Tailscale users:** Tailscale's virtual network adapter can hijack multicast. Try temporarily disabling Tailscale, or disable the Tailscale network adapter in Windows Network Connections.

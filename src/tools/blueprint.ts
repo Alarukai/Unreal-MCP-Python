@@ -145,12 +145,12 @@ else:
 import json
 bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
-    unreal.BlueprintEditorLibrary.add_member_variable(bp, '{{variable_name}}', '${pinType}')
+    unreal.BlueprintEditorLibrary.add_member_variable(bp, '{{variable_name}}', '{{pin_type}}')
     unreal.BlueprintEditorLibrary.compile_blueprint(bp)
-    print(json.dumps({"success": True, "variable": "{{variable_name}}", "type": "${variable_type}"}))
+    print(json.dumps({"success": True, "variable": "{{variable_name}}", "type": "{{variable_type}}"}))
 else:
     print(json.dumps({"error": "Blueprint not found"}))`,
-				{ blueprint_path, variable_name },
+				{ blueprint_path, variable_name, pin_type: pinType, variable_type },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };

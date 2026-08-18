@@ -132,14 +132,14 @@ import json
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
 path = '{{asset_path}}'
 result = {}
-if '${direction}' in ('dependencies', 'both'):
+if '{{direction}}' in ('dependencies', 'both'):
     deps = registry.get_dependencies(path)
     result['dependencies'] = [str(d) for d in deps] if deps else []
-if '${direction}' in ('referencers', 'both'):
+if '{{direction}}' in ('referencers', 'both'):
     refs = registry.get_referencers(path)
     result['referencers'] = [str(r) for r in refs] if refs else []
 print(json.dumps(result, indent=2))`,
-				{ asset_path },
+				{ asset_path, direction },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -203,12 +203,12 @@ import json
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
 refs = registry.get_referencers('{{asset_path}}')
 ref_list = [str(r) for r in refs] if refs else []
-if ref_list and not ${force ? "True" : "False"}:
+if ref_list and not {{force}}:
     print(json.dumps({"error": "Asset has referencers", "referencers": ref_list, "hint": "Use force=true to delete anyway"}))
 else:
     success = unreal.EditorAssetLibrary.delete_asset('{{asset_path}}')
     print(json.dumps({"deleted": success}))`,
-				{ asset_path },
+				{ asset_path, force: force ? "True" : "False" },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };

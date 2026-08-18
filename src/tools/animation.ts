@@ -118,14 +118,14 @@ import json
 mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
 if mesh and isinstance(mesh, unreal.SkeletalMesh):
     lib = unreal.EditorSkeletalMeshLibrary
-    for i in range(1, ${lod_count}):
+    for i in range(1, {{lod_count}}):
         reduction = 0.5 ** i
         lib.regenerate_lod(mesh, i, reduction)
     unreal.EditorAssetLibrary.save_asset('{{mesh_path}}')
-    print(json.dumps({"success": True, "lods": ${lod_count}}))
+    print(json.dumps({"success": True, "lods": {{lod_count}}}))
 else:
     print(json.dumps({"error": "SkeletalMesh not found: {{mesh_path}}"}))`,
-				{ mesh_path },
+				{ mesh_path, lod_count },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
