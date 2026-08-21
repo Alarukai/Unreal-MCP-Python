@@ -245,6 +245,7 @@ else:
 			blueprint_path: z.string().describe("Blueprint asset path"),
 			node_id: z.string().describe("Node ID to remove"),
 		},
+		{ destructiveHint: true },
 		async ({ blueprint_path, node_id }) => {
 			manager.requireEditor();
 

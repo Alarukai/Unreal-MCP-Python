@@ -38,6 +38,7 @@ print(json.dumps(result, indent=2))`;
 			const script = inlineScript(
 				`import unreal
 import json
+import os
 
 project_path = unreal.Paths.get_project_file_path()
 with open(project_path, 'r') as f:
@@ -54,8 +55,10 @@ for p in plugins:
 if not found:
     plugins.append({"Name": "{{plugin_name}}", "Enabled": True})
 
-with open(project_path, 'w') as f:
+tmp_path = project_path + '.tmp'
+with open(tmp_path, 'w') as f:
     json.dump(project, f, indent=2)
+os.replace(tmp_path, project_path)
 
 print(json.dumps({"success": True, "plugin": "{{plugin_name}}", "hint": "Restart the editor for the change to take effect"}))`,
 				{ plugin_name },
@@ -76,6 +79,7 @@ print(json.dumps({"success": True, "plugin": "{{plugin_name}}", "hint": "Restart
 			const script = inlineScript(
 				`import unreal
 import json
+import os
 
 project_path = unreal.Paths.get_project_file_path()
 with open(project_path, 'r') as f:
@@ -92,8 +96,10 @@ for p in plugins:
 if not found:
     plugins.append({"Name": "{{plugin_name}}", "Enabled": False})
 
-with open(project_path, 'w') as f:
+tmp_path = project_path + '.tmp'
+with open(tmp_path, 'w') as f:
     json.dump(project, f, indent=2)
+os.replace(tmp_path, project_path)
 
 print(json.dumps({"success": True, "plugin": "{{plugin_name}}", "hint": "Restart the editor for the change to take effect"}))`,
 				{ plugin_name },
