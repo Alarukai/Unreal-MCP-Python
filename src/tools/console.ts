@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ConnectionManager } from "../transports/connection-manager.js";
 import type { UnrealMcpConfig } from "../types.js";
 import { inlineScript } from "../utils/template.js";
+import { assertSafeFilename } from "../utils/validate.js";
 
 export function registerConsoleTools(
 	server: McpServer,
@@ -47,20 +48,7 @@ export function registerConsoleTools(
 		},
 		async ({ filename }) => {
 			manager.requireEditor();
-			if (filename && !/^[\w.-]+$/.test(filename)) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: JSON.stringify({
-								error:
-									"Invalid filename: only letters, digits, '.', '_', and '-' are allowed (no path separators).",
-							}),
-						},
-					],
-					isError: true,
-				};
-			}
+			assertSafeFilename(filename);
 			const fname = filename || `screenshot_${Date.now()}.png`;
 			const script = inlineScript(
 				`import unreal

@@ -220,6 +220,7 @@ export function registerBuildTools(
 		{
 			platform: z.string().optional().describe("Target platform"),
 		},
+		{ destructiveHint: true },
 		async ({ platform }) => {
 			const result = await manager.subprocess.runUBT([
 				config.projectPath,
@@ -247,6 +248,7 @@ export function registerBuildTools(
 		{
 			build_log: z.string().describe("Raw build log output to parse for errors and warnings"),
 		},
+		{ readOnlyHint: true },
 		async ({ build_log }) => {
 			const { parseBuildOutput } = await import("../utils/output-parser.js");
 			const parsed = parseBuildOutput(build_log);

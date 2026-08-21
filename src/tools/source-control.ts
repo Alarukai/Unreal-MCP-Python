@@ -17,6 +17,7 @@ export function registerSourceControlTools(
 				.array(z.string())
 				.describe("File paths to query (content paths like /Game/... or absolute paths)"),
 		},
+		{ readOnlyHint: true },
 		async ({ paths }) => {
 			manager.requireEditor();
 			const pathsJson = JSON.stringify(paths);
@@ -102,6 +103,7 @@ print(json.dumps(results, indent=2))`,
 		{
 			paths: z.array(z.string()).describe("File paths to revert"),
 		},
+		{ destructiveHint: true },
 		async ({ paths }) => {
 			manager.requireEditor();
 			const pathsJson = JSON.stringify(paths);
@@ -150,6 +152,7 @@ print(json.dumps(results, indent=2))`,
 		{
 			path: z.string().describe("File path to diff"),
 		},
+		{ readOnlyHint: true },
 		async ({ path }) => {
 			manager.requireEditor();
 			const script = inlineScript(

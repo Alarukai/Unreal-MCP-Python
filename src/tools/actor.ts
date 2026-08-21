@@ -19,6 +19,7 @@ export function registerActorTools(
 				.describe("Filter by actor class (e.g., StaticMeshActor, PointLight)"),
 			name_filter: z.string().optional().describe("Filter by name substring"),
 		},
+		{ readOnlyHint: true },
 		async ({ class_filter, name_filter }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -118,6 +119,7 @@ else:
 		{
 			name: z.string().describe("Actor name or label to delete"),
 		},
+		{ destructiveHint: true },
 		async ({ name }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -145,6 +147,7 @@ print(json.dumps({"deleted": deleted, "name": "{{name}}"}))`,
 		{
 			name: z.string().describe("Actor name or label"),
 		},
+		{ readOnlyHint: true },
 		async ({ name }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -259,6 +262,7 @@ if not found:
 		{
 			name: z.string().describe("Actor name or label"),
 		},
+		{ readOnlyHint: true },
 		async ({ name }) => {
 			manager.requireEditor();
 			const script = inlineScript(

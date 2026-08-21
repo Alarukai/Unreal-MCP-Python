@@ -229,6 +229,7 @@ else:
 			material_path: z.string().describe("Material asset path"),
 			expression_name: z.string().describe("Expression name to delete"),
 		},
+		{ destructiveHint: true },
 		async ({ material_path, expression_name }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -260,6 +261,7 @@ else:
 		{
 			material_path: z.string().describe("Material asset path"),
 		},
+		{ readOnlyHint: true },
 		async ({ material_path }) => {
 			manager.requireEditor();
 			const script = inlineScript(

@@ -23,6 +23,7 @@ export function registerAssetTools(
 				.describe("Filter by asset class (e.g., StaticMesh, Material, Blueprint)"),
 			recursive: z.boolean().default(true).describe("Include subdirectories"),
 		},
+		{ readOnlyHint: true },
 		async ({ directory, class_filter, recursive }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -59,6 +60,7 @@ print(json.dumps(results[:500], indent=2))`,
 			query: z.string().describe("Search query (asset name substring)"),
 			class_filter: z.string().optional().describe("Filter by asset class"),
 		},
+		{ readOnlyHint: true },
 		async ({ query, class_filter }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -93,6 +95,7 @@ print(json.dumps(results, indent=2))`,
 		{
 			asset_path: z.string().describe("Asset path (e.g., /Game/Meshes/MyMesh.MyMesh)"),
 		},
+		{ readOnlyHint: true },
 		async ({ asset_path }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -124,6 +127,7 @@ else:
 			asset_path: z.string().describe("Asset package path (e.g., /Game/Meshes/MyMesh)"),
 			direction: z.enum(["dependencies", "referencers", "both"]).default("both"),
 		},
+		{ readOnlyHint: true },
 		async ({ asset_path, direction }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -153,6 +157,7 @@ print(json.dumps(result, indent=2))`,
 			source_path: z.string().describe("Current asset path"),
 			destination_path: z.string().describe("New asset path"),
 		},
+		{ destructiveHint: true },
 		async ({ source_path, destination_path }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -195,6 +200,7 @@ print(json.dumps({"success": result is not None, "path": '{{destination_path}}' 
 			asset_path: z.string().describe("Asset path to delete"),
 			force: z.boolean().default(false).describe("Delete even if referenced by other assets"),
 		},
+		{ destructiveHint: true },
 		async ({ asset_path, force }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -279,6 +285,7 @@ print(json.dumps({"success": success, "output": '{{output_path}}'}))`,
 		{
 			directory: z.string().default("/Game").describe("Content directory to validate"),
 		},
+		{ readOnlyHint: true },
 		async ({ directory }) => {
 			manager.requireEditor();
 			const script = inlineScript(
@@ -379,6 +386,7 @@ print(json.dumps({"success": True}))`;
 		"content_audit",
 		"Run content audit to find costly or problematic assets (runs ContentAudit commandlet).",
 		{},
+		{ readOnlyHint: true },
 		async () => {
 			const result = await manager.subprocess.runCommandlet("ContentAudit");
 			return {
@@ -402,6 +410,7 @@ print(json.dumps({"success": True}))`;
 			target_path: z.string().describe("Target asset path to keep"),
 			source_paths: z.array(z.string()).describe("Source asset paths to consolidate into target"),
 		},
+		{ destructiveHint: true },
 		async ({ target_path, source_paths }) => {
 			manager.requireEditor();
 			const sourcePathsJson = JSON.stringify(source_paths);
