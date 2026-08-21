@@ -47,6 +47,20 @@ export function registerConsoleTools(
 		},
 		async ({ filename }) => {
 			manager.requireEditor();
+			if (filename && !/^[\w.-]+$/.test(filename)) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify({
+								error:
+									"Invalid filename: only letters, digits, '.', '_', and '-' are allowed (no path separators).",
+							}),
+						},
+					],
+					isError: true,
+				};
+			}
 			const fname = filename || `screenshot_${Date.now()}.png`;
 			const script = inlineScript(
 				`import unreal

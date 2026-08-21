@@ -200,6 +200,16 @@ reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s p
 > This server itself only ever connects to `127.0.0.1` (hardcoded, not configurable) — the
 > exposure described above is purely a property of the UE editor's own setting, which this
 > README used to recommend widening without this warning.
+>
+> **Residual risk even at `127.0.0.1`-only:** the TCP command channel this server opens
+> (port 6776, via the `unreal-remote-execution` package) accepts whichever process connects
+> to it first — it does not verify the connecting peer is actually the UE Editor. Binding to
+> loopback stops other machines from reaching it, but **not** other users/processes on the
+> same machine: on a shared or multi-user system, a second local process could in principle
+> race to connect first and both receive the Python command meant for UE and return a forged
+> result back to this server. This is a property of the underlying protocol (Epic's Python
+> Remote Execution has no shared secret to authenticate with), not something this server can
+> fix on its own. Don't run this on a shared/multi-tenant machine you don't fully trust.
 
 **Still getting "No Unreal Editor nodes found"?**
 - **VPN/Tailscale users:** Tailscale's virtual network adapter can hijack multicast. Try temporarily disabling Tailscale, or disable the Tailscale network adapter in Windows Network Connections.
