@@ -432,4 +432,136 @@ else:
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
+
+	server.tool(
+		"find_orphan_assets",
+		"Find assets in a directory that have zero referencers (nothing in the project uses them) — candidates for cleanup.",
+		{
+			directory: z.string().default("/Game").describe("Content directory to scan"),
+			max_scan: z
+				.number()
+				.int()
+				.min(1)
+				.max(2000)
+				.default(500)
+				.describe("Maximum number of assets to scan (registry lookups are per-asset)"),
+		},
+		{ readOnlyHint: true },
+		async ({ directory, max_scan }) => {
+			manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+assets = registry.get_assets_by_path('{{directory}}', True) or []
+orphans = []
+scanned = 0
+for a in assets[:{{max_scan}}]:
+    scanned += 1
+    package = str(a.package_name)
+    refs = registry.get_referencers(package)
+    if not refs:
+        cls = str(a.asset_class_path.asset_name) if hasattr(a, 'asset_class_path') else str(a.asset_class)
+        orphans.append({"name": str(a.asset_name), "path": package, "class": cls})
+print(json.dumps({"orphans": orphans, "orphan_count": len(orphans), "scanned": scanned, "total_in_directory": len(assets)}, indent=2))`,
+				{ directory, max_scan },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"find_circular_dependencies",
+		"Find dependency cycles that lead back to the given asset (A depends on B depends on ... depends on A).",
+		{
+			asset_path: z.string().describe("Asset package path to check (e.g., /Game/Meshes/MyMesh)"),
+			max_depth: z
+				.number()
+				.int()
+				.min(1)
+				.max(30)
+				.default(10)
+				.describe("Maximum dependency chain depth to search"),
+		},
+		{ readOnlyHint: true },
+		async ({ asset_path, max_depth }) => {
+			manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+start = '{{asset_path}}'
+max_depth = {{max_depth}}
+cycles = []
+visited = set()
+
+def dfs(path, chain, depth):
+    if depth > max_depth or len(cycles) >= 20:
+        return
+    deps = registry.get_dependencies(path) or []
+    for d in deps:
+        d_str = str(d)
+        if d_str == start:
+            cycles.append(chain + [d_str])
+            continue
+        if d_str in chain or d_str in visited:
+            continue
+        visited.add(d_str)
+        dfs(d_str, chain + [d_str], depth + 1)
+
+dfs(start, [start], 1)
+print(json.dumps({"start": start, "cycles": cycles, "cycle_count": len(cycles), "max_depth_searched": max_depth}, indent=2))`,
+				{ asset_path, max_depth },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"get_dependency_tree",
+		"Get an asset's dependency graph as a recursive tree, several levels deep.",
+		{
+			asset_path: z.string().describe("Asset package path (e.g., /Game/Meshes/MyMesh)"),
+			depth: z.number().int().min(1).max(5).default(2).describe("How many levels deep to recurse"),
+			max_children: z
+				.number()
+				.int()
+				.min(1)
+				.max(100)
+				.default(20)
+				.describe("Maximum children to expand per node, to keep the tree bounded"),
+		},
+		{ readOnlyHint: true },
+		async ({ asset_path, depth, max_children }) => {
+			manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+max_children = {{max_children}}
+
+def build_tree(path, remaining_depth, seen):
+    if path in seen:
+        return {"path": path, "cycle": True}
+    if remaining_depth <= 0:
+        return {"path": path, "truncated": True}
+    seen = seen | {path}
+    deps = registry.get_dependencies(path) or []
+    dep_list = [str(d) for d in deps]
+    children = [build_tree(d, remaining_depth - 1, seen) for d in dep_list[:max_children]]
+    node = {"path": path, "children": children}
+    if len(dep_list) > max_children:
+        node["children_omitted"] = len(dep_list) - max_children
+    return node
+
+tree = build_tree('{{asset_path}}', {{depth}}, set())
+print(json.dumps(tree, indent=2))`,
+				{ asset_path, depth, max_children },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
 }
