@@ -138,7 +138,18 @@ export class ConnectionManager {
 			try {
 				return await this.python.execute(code);
 			} catch (error) {
-				// If Python exec fails, fall through to RC if available
+				// A throw here can mean either "the user's Python script raised an
+				// exception" (connection still fine) or "the connection actually
+				// died" (editor closed/crashed, network dropped mid-call) — the
+				// client doesn't cleanly distinguish the two at this layer. Rather
+				// than keep trusting a possibly-stale "connected" status
+				// indefinitely (requireEditor()'s cached-good fast path never
+				// re-verifies it), invalidate it here: the next requireEditor()
+				// re-probes instead of retrying a dead connection until someone
+				// restarts the whole MCP server. Worst case for a genuine script
+				// bug is one extra (cheap, cached) re-probe on the next call.
+				this._status.pythonExec = false;
+				this._status.editorRunning = this._status.remoteControl;
 				if (!this._status.remoteControl) throw error;
 				console.error(`[unreal-mcp] Python exec failed, falling back to Remote Control: ${error}`);
 			}
@@ -146,7 +157,13 @@ export class ConnectionManager {
 
 		// Fall back to Remote Control API
 		if (this._status.remoteControl) {
-			return this.rc.executePython(code);
+			try {
+				return await this.rc.executePython(code);
+			} catch (error) {
+				this._status.remoteControl = false;
+				this._status.editorRunning = this._status.pythonExec;
+				throw error;
+			}
 		}
 
 		throw new Error(
