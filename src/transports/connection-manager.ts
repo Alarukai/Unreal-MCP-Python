@@ -1,4 +1,5 @@
 import type { ConnectionStatus, PluginCapabilities, UnrealMcpConfig } from "../types.js";
+import { PythonExecutionError } from "../utils/errors.js";
 import { PluginBridgeClient } from "./plugin-bridge.js";
 import { PythonExecClient } from "./python-exec.js";
 import { RemoteControlClient } from "./remote-control.js";
@@ -138,20 +139,31 @@ export class ConnectionManager {
 			try {
 				return await this.python.execute(code);
 			} catch (error) {
-				// A throw here can mean either "the user's Python script raised an
-				// exception" (connection still fine) or "the connection actually
-				// died" (editor closed/crashed, network dropped mid-call) — the
-				// client doesn't cleanly distinguish the two at this layer. Rather
-				// than keep trusting a possibly-stale "connected" status
-				// indefinitely (requireEditor()'s cached-good fast path never
-				// re-verifies it), invalidate it here: the next requireEditor()
-				// re-probes instead of retrying a dead connection until someone
-				// restarts the whole MCP server. Worst case for a genuine script
-				// bug is one extra (cheap, cached) re-probe on the next call.
+				// Distinguish a script error from a connection error. A
+				// PythonExecutionError means the code round-tripped and the *script*
+				// raised — the connection is fine. That's the common case (agent-
+				// written Python fails constantly), so do NOT invalidate the
+				// transport and do NOT fall back to RC (which would just re-run the
+				// same broken code and surface a worse error) — surface the Python
+				// error directly.
+				if (error instanceof PythonExecutionError) {
+					throw error;
+				}
+				// Anything else (raw socket error, NO_UE_NODES, TimeoutError) is a
+				// connection-level failure. Invalidate the cached status so the next
+				// requireEditor() re-probes instead of trusting a stale "connected"
+				// flag until the whole MCP server is restarted, then fall back to RC
+				// for this call if available.
+				// (One edge case heals a call late: if the socket drops *mid*-execution
+				// the client wraps it as PythonExecutionError, so it's misread as a
+				// script error here — but the next call's connection attempt fails
+				// with a connection-typed error and invalidates then.)
 				this._status.pythonExec = false;
 				this._status.editorRunning = this._status.remoteControl;
 				if (!this._status.remoteControl) throw error;
-				console.error(`[unreal-mcp] Python exec failed, falling back to Remote Control: ${error}`);
+				console.error(
+					`[unreal-mcp] Python exec connection failed, falling back to Remote Control: ${error}`,
+				);
 			}
 		}
 

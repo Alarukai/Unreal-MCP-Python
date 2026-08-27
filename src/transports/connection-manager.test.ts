@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { PythonExecutionError } from "../utils/errors.js";
 import { ConnectionManager } from "./connection-manager.js";
 import type { PluginBridgeClient } from "./plugin-bridge.js";
 import type { PythonExecClient } from "./python-exec.js";
@@ -100,6 +101,29 @@ describe("ConnectionManager.runPython status invalidation", () => {
 
 		expect(manager.status.pythonExec).toBe(false);
 		expect(manager.status.editorRunning).toBe(false);
+	});
+
+	it("does NOT invalidate the transport or fall back to RC on a script error (connection alive)", async () => {
+		const rcExecute = vi.fn(async () => "rc result");
+		const manager = makeManager({
+			pythonAvailable: async () => true,
+			pythonExecute: async () => {
+				// A PythonExecutionError = the code round-tripped and the user's
+				// script raised. The connection is fine.
+				throw new PythonExecutionError("NameError: name 'foo' is not defined", "{}");
+			},
+			rcAvailable: async () => true,
+			rcExecutePython: rcExecute,
+		});
+		await manager.refreshStatus();
+
+		await expect(manager.runPython("foo()")).rejects.toBeInstanceOf(PythonExecutionError);
+
+		// The healthy Python transport must stay marked available...
+		expect(manager.status.pythonExec).toBe(true);
+		expect(manager.status.editorRunning).toBe(true);
+		// ...and RC must NOT have been asked to re-run the same broken code.
+		expect(rcExecute).not.toHaveBeenCalled();
 	});
 
 	it("falls back to Remote Control on Python failure and keeps editorRunning true if RC succeeds", async () => {
