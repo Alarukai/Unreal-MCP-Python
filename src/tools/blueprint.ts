@@ -34,49 +34,99 @@ function splitRefPin(spec: string): { ref: string; pin: string } {
 	return { ref: spec.slice(0, dot), pin: spec.slice(dot + 1) };
 }
 
+/**
+ * Parse a runPython() result as the JSON our scripts print. UE occasionally
+ * emits log lines to stdout before the payload, and runPython can surface a
+ * plain error string, so a bare JSON.parse can throw. Callers run inside the
+ * edit_blueprint batch loop where a throw would discard all partial results,
+ * so failures must come back as structured data, never as an exception.
+ */
+function safeParsePython(result: string): { success: boolean; data: unknown } {
+	try {
+		const parsed = JSON.parse(result);
+		return { success: !(parsed && typeof parsed === "object" && "error" in parsed), data: parsed };
+	} catch {
+		// Retry against the last JSON-looking line, in case log spam preceded it.
+		const lastBrace = result.lastIndexOf("{");
+		if (lastBrace > 0) {
+			try {
+				const parsed = JSON.parse(result.slice(lastBrace));
+				return {
+					success: !(parsed && typeof parsed === "object" && "error" in parsed),
+					data: parsed,
+				};
+			} catch {
+				// fall through
+			}
+		}
+		return { success: false, data: { error: "Unparseable response from editor", raw: result } };
+	}
+}
+
 export function registerBlueprintTools(
 	server: McpServer,
 	manager: ConnectionManager,
 	_config: UnrealMcpConfig,
 ): void {
-	/** Shared by add_blueprint_variable and edit_blueprint. */
+	/**
+	 * Shared by add_blueprint_variable and edit_blueprint.
+	 * compileAndSave=false lets the batch tool defer to a single final compile
+	 * instead of compiling once per variable.
+	 */
 	async function addVariableImpl(
 		blueprint_path: string,
 		variable_name: string,
 		variable_type: string,
-		_default_value?: string,
+		default_value?: string,
+		compileAndSave = true,
 	): Promise<{ success: boolean; data: unknown }> {
 		if (manager.hasPlugin) {
 			const response = await manager.plugin.sendCommand({
 				command: "add_variable",
-				params: { blueprint_path, variable_name, variable_type, default_value: _default_value },
+				params: { blueprint_path, variable_name, variable_type, default_value },
 			});
 			return { success: response.success, data: response.data ?? response.error };
 		}
 
 		const pinType = VARIABLE_TYPE_MAP[variable_type] || "bool";
+		// UE's add_member_variable(blueprint, name, pin_type) takes no default-value
+		// argument, and setting one from Python requires fragile FBPVariableDescription
+		// manipulation. Rather than silently drop a default the caller passed, surface
+		// that it wasn't applied so they can use the plugin path or set_blueprint_property.
+		const compileLine = compileAndSave
+			? "    unreal.BlueprintEditorLibrary.compile_blueprint(bp)\n"
+			: "";
 		const script = inlineScript(
 			`import unreal
 import json
 bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
 if bp:
     unreal.BlueprintEditorLibrary.add_member_variable(bp, '{{variable_name}}', '{{pin_type}}')
-    unreal.BlueprintEditorLibrary.compile_blueprint(bp)
-    print(json.dumps({"success": True, "variable": "{{variable_name}}", "type": "{{variable_type}}"}))
+${compileLine}    print(json.dumps({"success": True, "variable": "{{variable_name}}", "type": "{{variable_type}}"}))
 else:
     print(json.dumps({"error": "Blueprint not found"}))`,
 			{ blueprint_path, variable_name, pin_type: pinType, variable_type },
 		);
 		const result = await manager.runPython(script);
-		const parsed = JSON.parse(result);
-		return { success: !parsed.error, data: parsed };
+		const parsed = safeParsePython(result);
+		if (parsed.success && default_value && parsed.data && typeof parsed.data === "object") {
+			(parsed.data as Record<string, unknown>).default_value_note =
+				"default_value was not applied: the Python fallback cannot set variable defaults. " +
+				"Use set_blueprint_property, or install the UnrealMCPBridge plugin.";
+		}
+		return parsed;
 	}
 
-	/** Shared by add_blueprint_component and edit_blueprint. */
+	/**
+	 * Shared by add_blueprint_component and edit_blueprint.
+	 * compileAndSave=false lets the batch tool defer to a single final compile
+	 * instead of compiling+saving once per component.
+	 */
 	async function addComponentImpl(
 		blueprint_path: string,
 		component_class: string,
 		component_name?: string,
+		compileAndSave = true,
 	): Promise<{ success: boolean; data: unknown }> {
 		if (manager.hasPlugin) {
 			const response = await manager.plugin.sendCommand({
@@ -87,6 +137,9 @@ else:
 		}
 
 		const cname = component_name || component_class.replace("Component", "");
+		const compileLines = compileAndSave
+			? "                unreal.BlueprintEditorLibrary.compile_blueprint(bp)\n                unreal.EditorAssetLibrary.save_asset('{{blueprint_path}}')\n"
+			: "";
 		const script = inlineScript(
 			`import unreal
 import json
@@ -100,9 +153,7 @@ if bp:
             root_handle = handles[0] if handles else None
             new_handle, fail = subsys.k2_add_new_subobject(unreal.AddNewSubobjectParams(parent_handle=root_handle, new_class=comp_class, blueprint_context=bp))
             if new_handle.is_valid():
-                unreal.BlueprintEditorLibrary.compile_blueprint(bp)
-                unreal.EditorAssetLibrary.save_asset('{{blueprint_path}}')
-                print(json.dumps({"success": True, "component": "{{cname}}"}))
+${compileLines}                print(json.dumps({"success": True, "component": "{{cname}}"}))
             else:
                 print(json.dumps({"error": "Failed to add component: " + str(fail)}))
         except Exception as e:
@@ -114,8 +165,7 @@ else:
 			{ blueprint_path, component_class, cname, component_name: cname },
 		);
 		const result = await manager.runPython(script);
-		const parsed = JSON.parse(result);
-		return { success: !parsed.error, data: parsed };
+		return safeParsePython(result);
 	}
 
 	/** Shared by add_graph_node and edit_blueprint. Plugin-only, no Python fallback. */
@@ -713,7 +763,14 @@ else:
 					}),
 				)
 				.optional(),
-			compile: z.boolean().default(true).describe("Compile the Blueprint after applying changes"),
+			compile: z
+				.boolean()
+				.default(true)
+				.describe(
+					"Compile and save the Blueprint once after applying all changes. If false, the " +
+						"additions are made but NOT compiled or saved — call compile_blueprint yourself " +
+						"afterward, e.g. when chaining several edit_blueprint calls.",
+				),
 		},
 		async ({ blueprint_path, add_nodes, connect_pins, add_variables, add_components, compile }) => {
 			manager.requireEditor();
@@ -722,12 +779,15 @@ else:
 			const modified: Record<string, unknown>[] = [];
 			const errors: Record<string, unknown>[] = [];
 
+			// Defer compilation to the single final compile step below (compileAndSave=false)
+			// instead of compiling once per variable/component.
 			for (const v of add_variables || []) {
 				const { success, data } = await addVariableImpl(
 					blueprint_path,
 					v.variable_name,
 					v.variable_type,
 					v.default_value,
+					false,
 				);
 				(success ? created : errors).push({ op: "add_variable", variable: v.variable_name, data });
 			}
@@ -737,6 +797,7 @@ else:
 					blueprint_path,
 					c.component_class,
 					c.component_name,
+					false,
 				);
 				(success ? created : errors).push({
 					op: "add_component",
@@ -828,8 +889,8 @@ else:
 					{ blueprint_path },
 				);
 				const result = await manager.runPython(script);
-				const parsed = JSON.parse(result);
-				(parsed.error ? errors : modified).push({ op: "compile", data: parsed });
+				const { success, data } = safeParsePython(result);
+				(success ? modified : errors).push({ op: "compile", data });
 			}
 
 			return {

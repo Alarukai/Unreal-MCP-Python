@@ -494,8 +494,12 @@ registry = unreal.AssetRegistryHelpers.get_asset_registry()
 start = '{{asset_path}}'
 max_depth = {{max_depth}}
 cycles = []
-visited = set()
 
+# Prune only on the current recursion path (chain), NOT a global visited set:
+# a node first reached via a branch that doesn't loop back to start would be
+# marked globally visited and then skipped on a later branch that DOES loop
+# back, silently missing that cycle. The depth cap and 20-cycle result cap
+# bound the cost instead.
 def dfs(path, chain, depth):
     if depth > max_depth or len(cycles) >= 20:
         return
@@ -505,9 +509,8 @@ def dfs(path, chain, depth):
         if d_str == start:
             cycles.append(chain + [d_str])
             continue
-        if d_str in chain or d_str in visited:
+        if d_str in chain:
             continue
-        visited.add(d_str)
         dfs(d_str, chain + [d_str], depth + 1)
 
 dfs(start, [start], 1)
