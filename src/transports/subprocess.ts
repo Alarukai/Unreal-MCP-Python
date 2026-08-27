@@ -22,7 +22,7 @@ export interface SubprocessConfig {
 // build argument (paths, target names, platform names) needs these characters.
 const UNSAFE_ARG_PATTERN = /[;&|`$<>\n\r]/;
 
-function assertSafeArg(arg: string): void {
+export function assertSafeArg(arg: string): void {
 	if (UNSAFE_ARG_PATTERN.test(arg)) {
 		throw new UnrealMcpError(
 			`Rejected unsafe subprocess argument (contains shell metacharacters): ${arg}`,

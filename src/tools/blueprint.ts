@@ -21,14 +21,14 @@ const VARIABLE_TYPE_MAP: Record<string, string> = {
  * here — try the field names its sibling projects commonly use rather
  * than assuming one and failing silently on the others.
  */
-function extractNodeId(data: unknown): string | undefined {
+export function extractNodeId(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return undefined;
 	const obj = data as Record<string, unknown>;
 	const candidate = obj.node_id ?? obj.nodeId ?? obj.id;
 	return typeof candidate === "string" ? candidate : undefined;
 }
 
-function splitRefPin(spec: string): { ref: string; pin: string } {
+export function splitRefPin(spec: string): { ref: string; pin: string } {
 	const dot = spec.indexOf(".");
 	if (dot === -1) return { ref: spec, pin: "" };
 	return { ref: spec.slice(0, dot), pin: spec.slice(dot + 1) };
@@ -41,7 +41,7 @@ function splitRefPin(spec: string): { ref: string; pin: string } {
  * edit_blueprint batch loop where a throw would discard all partial results,
  * so failures must come back as structured data, never as an exception.
  */
-function safeParsePython(result: string): { success: boolean; data: unknown } {
+export function safeParsePython(result: string): { success: boolean; data: unknown } {
 	try {
 		const parsed = JSON.parse(result);
 		return { success: !(parsed && typeof parsed === "object" && "error" in parsed), data: parsed };
