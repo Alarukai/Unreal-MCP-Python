@@ -16,7 +16,7 @@ export function registerTestingTools(
 			filter: z.string().optional().describe("Filter tests by name substring"),
 		},
 		async () => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = `import unreal
 import json
 # Use console command to list tests
@@ -34,7 +34,7 @@ print(json.dumps({"hint": "Check Output Log for test list. Use run_automation_te
 			test_name: z.string().describe("Test name or pattern to run"),
 		},
 		async ({ test_name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -48,7 +48,7 @@ print(json.dumps({"started": True, "test": "{{test_name}}", "hint": "Check Outpu
 	);
 
 	server.tool("run_all_automation_tests", "Run all automation tests.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 unreal.SystemLibrary.execute_console_command(None, 'automation runall')
@@ -58,7 +58,7 @@ print(json.dumps({"started": True, "hint": "Check Output Log for test results"})
 	});
 
 	server.tool("run_map_check", "Run Map Check validation on the current level.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 unreal.SystemLibrary.execute_console_command(None, 'map check')
@@ -74,7 +74,7 @@ print(json.dumps({"success": True, "hint": "Check Message Log for Map Check resu
 			directory: z.string().default("/Game").describe("Content directory to validate"),
 		},
 		async ({ directory }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -127,7 +127,7 @@ print(json.dumps({"validating": count, "directory": "{{directory}}"}))`,
 				.describe("Test category pattern (e.g., 'Project.Functional', 'Engine.Rendering')"),
 		},
 		async ({ category }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -145,7 +145,7 @@ print(json.dumps({"started": True, "category": "{{category}}"}))`,
 		"Get the results of the last automation test run.",
 		{},
 		async () => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = `import unreal
 import json
 # Query automation results via the automation controller

@@ -25,7 +25,7 @@ export function registerAssetTools(
 		},
 		{ readOnlyHint: true },
 		async ({ directory, class_filter, recursive }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -62,7 +62,7 @@ print(json.dumps(results[:500], indent=2))`,
 		},
 		{ readOnlyHint: true },
 		async ({ query, class_filter }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -97,7 +97,7 @@ print(json.dumps(results, indent=2))`,
 		},
 		{ readOnlyHint: true },
 		async ({ asset_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -129,7 +129,7 @@ else:
 		},
 		{ readOnlyHint: true },
 		async ({ asset_path, direction }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -159,7 +159,7 @@ print(json.dumps(result, indent=2))`,
 		},
 		{ destructiveHint: true },
 		async ({ source_path, destination_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -180,7 +180,7 @@ print(json.dumps({"success": success}))`,
 			destination_path: z.string().describe("Destination asset path"),
 		},
 		async ({ source_path, destination_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -202,7 +202,7 @@ print(json.dumps({"success": result is not None, "path": '{{destination_path}}' 
 		},
 		{ destructiveHint: true },
 		async ({ asset_path, force }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -231,7 +231,7 @@ else:
 				.describe("Content directory to import into (e.g., /Game/Meshes)"),
 		},
 		async ({ source_file, destination_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -261,7 +261,7 @@ else:
 			output_path: z.string().describe("Output file path on disk"),
 		},
 		async ({ asset_path, output_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -287,7 +287,7 @@ print(json.dumps({"success": success, "output": '{{output_path}}'}))`,
 		},
 		{ readOnlyHint: true },
 		async ({ directory }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -315,7 +315,7 @@ print(json.dumps({"validated": True}))`,
 			asset_path: z.string().describe("Asset path to save"),
 		},
 		async ({ asset_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -329,7 +329,7 @@ print(json.dumps({"saved": success}))`,
 	);
 
 	server.tool("save_all", "Save all dirty (modified) assets.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)
@@ -412,7 +412,7 @@ print(json.dumps({"success": True}))`;
 		},
 		{ destructiveHint: true },
 		async ({ target_path, source_paths }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const sourcePathsJson = JSON.stringify(source_paths);
 			const script = inlineScript(
 				`import unreal
@@ -448,7 +448,7 @@ else:
 		},
 		{ readOnlyHint: true },
 		async ({ directory, max_scan }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -486,7 +486,7 @@ print(json.dumps({"orphans": orphans, "orphan_count": len(orphans), "scanned": s
 		},
 		{ readOnlyHint: true },
 		async ({ asset_path, max_depth }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -538,7 +538,7 @@ print(json.dumps({"start": start, "cycles": cycles, "cycle_count": len(cycles), 
 		},
 		{ readOnlyHint: true },
 		async ({ asset_path, depth, max_children }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json

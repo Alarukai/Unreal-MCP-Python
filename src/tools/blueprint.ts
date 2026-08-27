@@ -208,7 +208,7 @@ else:
 			path: z.string().default("/Game/Blueprints").describe("Content directory to create in"),
 		},
 		async ({ name, parent_class, path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 
 			// Try plugin bridge first for richer creation
 			if (manager.hasPlugin) {
@@ -252,7 +252,7 @@ else:
 			component_name: z.string().optional().describe("Name for the component"),
 		},
 		async ({ blueprint_path, component_class, component_name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const { data } = await addComponentImpl(blueprint_path, component_class, component_name);
 			return { content: [{ type: "text", text: JSON.stringify(data) }] };
 		},
@@ -270,7 +270,7 @@ else:
 			default_value: z.string().optional().describe("Default value as string"),
 		},
 		async ({ blueprint_path, variable_name, variable_type, default_value }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const { data } = await addVariableImpl(
 				blueprint_path,
 				variable_name,
@@ -301,7 +301,7 @@ else:
 				),
 		},
 		async ({ blueprint_path, node_type, x, y, properties }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 
 			if (manager.hasPlugin) {
 				const response = await addNodeImpl(blueprint_path, node_type, x, y, properties);
@@ -337,7 +337,7 @@ else:
 			target_pin: z.string().describe("Target pin name"),
 		},
 		async ({ blueprint_path, source_node_id, source_pin, target_node_id, target_pin }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 
 			if (manager.hasPlugin) {
 				const response = await connectNodesImpl(
@@ -375,7 +375,7 @@ else:
 		},
 		{ destructiveHint: true },
 		async ({ blueprint_path, node_id }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 
 			if (manager.hasPlugin) {
 				const response = await manager.plugin.sendCommand({
@@ -403,7 +403,7 @@ else:
 			blueprint_path: z.string().describe("Blueprint asset path"),
 		},
 		async ({ blueprint_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 
 			if (manager.hasPlugin) {
 				const response = await manager.plugin.sendCommand({
@@ -437,7 +437,7 @@ else:
 			blueprint_path: z.string().describe("Blueprint asset path"),
 		},
 		async ({ blueprint_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -462,7 +462,7 @@ else:
 			blueprint_path: z.string().describe("Blueprint asset path"),
 		},
 		async ({ blueprint_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -519,7 +519,7 @@ else:
 				.default({ pitch: 0, yaw: 0, roll: 0 }),
 		},
 		async ({ blueprint_path, label, location, rotation }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -562,7 +562,7 @@ else:
 			function_name: z.string().describe("Function name"),
 		},
 		async ({ blueprint_path, function_name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 
 			if (manager.hasPlugin) {
 				const response = await manager.plugin.sendCommand({
@@ -604,7 +604,7 @@ else:
 				),
 		},
 		async ({ blueprint_path, property_name, property_value }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -773,7 +773,7 @@ else:
 				),
 		},
 		async ({ blueprint_path, add_nodes, connect_pins, add_variables, add_components, compile }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 
 			const created: Record<string, unknown>[] = [];
 			const modified: Record<string, unknown>[] = [];

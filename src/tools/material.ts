@@ -17,7 +17,7 @@ export function registerMaterialTools(
 			path: z.string().default("/Game/Materials").describe("Content directory"),
 		},
 		async ({ name, path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -44,7 +44,7 @@ else:
 			slot_index: z.number().default(0).describe("Material slot index"),
 		},
 		async ({ actor_name, material_path, slot_index }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -85,7 +85,7 @@ else:
 			y: z.number().default(0).describe("Y position in graph"),
 		},
 		async ({ material_path, expression_class, x, y }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -133,7 +133,7 @@ else:
 			to_expression_name,
 			to_input_name,
 		}) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -194,7 +194,7 @@ else:
 				.describe("Material property to connect to"),
 		},
 		async ({ material_path, expression_name, output_name, material_property }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -231,7 +231,7 @@ else:
 		},
 		{ destructiveHint: true },
 		async ({ material_path, expression_name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -263,7 +263,7 @@ else:
 		},
 		{ readOnlyHint: true },
 		async ({ material_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -291,7 +291,7 @@ else:
 			path: z.string().default("/Game/Materials").describe("Content directory"),
 		},
 		async ({ name, parent_path, path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -323,7 +323,7 @@ else:
 			value: z.number().describe("Parameter value"),
 		},
 		async ({ instance_path, parameter_name, value }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -352,7 +352,7 @@ else:
 				.describe("RGBA values (0-1)"),
 		},
 		async ({ instance_path, parameter_name, value }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -387,7 +387,7 @@ else:
 			texture_path: z.string().describe("Texture asset path"),
 		},
 		async ({ instance_path, parameter_name, texture_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -413,7 +413,7 @@ else:
 			material_path: z.string().describe("Material asset path"),
 		},
 		async ({ material_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -440,7 +440,7 @@ else:
 			path: z.string().default("/Game/Materials/Functions").describe("Content directory"),
 		},
 		async ({ name, path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json

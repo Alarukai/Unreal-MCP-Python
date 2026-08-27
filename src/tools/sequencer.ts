@@ -17,7 +17,7 @@ export function registerSequencerTools(
 			path: z.string().default("/Game/Cinematics").describe("Content directory"),
 		},
 		async ({ name, path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -42,7 +42,7 @@ else:
 			sequence_path: z.string().describe("LevelSequence asset path"),
 		},
 		async ({ sequence_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -84,7 +84,7 @@ else:
 			actor_name: z.string().describe("Actor name or label to bind"),
 		},
 		async ({ sequence_path, actor_name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -131,7 +131,7 @@ else:
 				.describe("Track class name"),
 		},
 		async ({ sequence_path, binding_id, track_type }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -167,7 +167,7 @@ else:
 			end_frame: z.number().describe("End frame"),
 		},
 		async ({ sequence_path, start_frame, end_frame }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -195,7 +195,7 @@ else:
 			fps: z.number().default(30).describe("Frames per second"),
 		},
 		async ({ sequence_path, fps }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -223,7 +223,7 @@ else:
 			output_path: z.string().describe("Output FBX file path"),
 		},
 		async ({ sequence_path, output_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -259,7 +259,7 @@ else:
 			output_directory: z.string().optional().describe("Output directory for rendered frames"),
 		},
 		async ({ sequence_path, output_directory }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const outDir = output_directory || "{project}/Saved/MovieRenders";
 			const script = inlineScript(
 				`import unreal

@@ -21,6 +21,9 @@ export class ConnectionManager {
 		editorRunning: false,
 	};
 
+	/** Timestamp of the last re-probe triggered by requireEditor(), for cooldown. */
+	private _lastEditorReprobe = 0;
+
 	async initialize(config: UnrealMcpConfig): Promise<void> {
 		// Initialize all transports
 		this.rc = new RemoteControlClient({
@@ -84,8 +87,24 @@ export class ConnectionManager {
 	/**
 	 * Ensure the editor is connected via at least one transport.
 	 * Throws if no editor connection is available.
+	 *
+	 * The connection status is otherwise only probed at server startup, but an
+	 * MCP server is typically launched by its client (e.g. Claude Desktop/Code)
+	 * before the UE editor is running — and the editor is often started or
+	 * restarted mid-session. So when the cached status says "not connected",
+	 * re-probe once (with a short cooldown) before failing: a tool call made
+	 * after the editor launches then self-heals instead of failing permanently
+	 * until the whole MCP server is restarted.
 	 */
-	requireEditor(): void {
+	async requireEditor(): Promise<void> {
+		if (this._status.editorRunning) return; // Fast path: connection already known good.
+
+		const now = Date.now();
+		if (now - this._lastEditorReprobe > 2000) {
+			this._lastEditorReprobe = now;
+			await this.refreshStatus();
+		}
+
 		if (!this._status.editorRunning) {
 			throw new Error(
 				"Unreal Editor is not connected. Make sure the editor is running with " +

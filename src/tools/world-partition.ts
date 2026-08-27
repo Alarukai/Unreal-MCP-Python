@@ -14,7 +14,7 @@ export function registerWorldPartitionTools(
 		"List all data layers in the current World Partition level.",
 		{},
 		async () => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = `import unreal
 import json
 world = unreal.EditorLevelLibrary.get_editor_world()
@@ -45,7 +45,7 @@ else:
 			state: z.enum(["Loaded", "Activated", "Unloaded"]).describe("Target state"),
 		},
 		async ({ layer_name, state }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -71,7 +71,7 @@ else:
 	);
 
 	server.tool("get_loaded_cells", "Query currently loaded world partition cells.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 world = unreal.EditorLevelLibrary.get_editor_world()
@@ -92,7 +92,7 @@ else:
 			radius: z.number().default(10000).describe("Streaming radius in units"),
 		},
 		async ({ actor_name, radius }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json

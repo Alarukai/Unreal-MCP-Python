@@ -19,7 +19,7 @@ export function registerSourceControlTools(
 		},
 		{ readOnlyHint: true },
 		async ({ paths }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const pathsJson = JSON.stringify(paths);
 			const script = inlineScript(
 				`import unreal
@@ -55,7 +55,7 @@ print(json.dumps(results, indent=2))`,
 			paths: z.array(z.string()).describe("File paths to check out"),
 		},
 		async ({ paths }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const pathsJson = JSON.stringify(paths);
 			const script = inlineScript(
 				`import unreal
@@ -80,7 +80,7 @@ print(json.dumps(results, indent=2))`,
 			description: z.string().describe("Check-in description / commit message"),
 		},
 		async ({ paths, description }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const pathsJson = JSON.stringify(paths);
 			const script = inlineScript(
 				`import unreal
@@ -105,7 +105,7 @@ print(json.dumps(results, indent=2))`,
 		},
 		{ destructiveHint: true },
 		async ({ paths }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const pathsJson = JSON.stringify(paths);
 			const script = inlineScript(
 				`import unreal
@@ -129,7 +129,7 @@ print(json.dumps(results, indent=2))`,
 			paths: z.array(z.string()).describe("File paths to mark for add"),
 		},
 		async ({ paths }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const pathsJson = JSON.stringify(paths);
 			const script = inlineScript(
 				`import unreal
@@ -154,7 +154,7 @@ print(json.dumps(results, indent=2))`,
 		},
 		{ readOnlyHint: true },
 		async ({ path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json

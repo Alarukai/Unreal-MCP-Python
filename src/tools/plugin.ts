@@ -10,7 +10,7 @@ export function registerPluginTools(
 	_config: UnrealMcpConfig,
 ): void {
 	server.tool("list_plugins", "List installed plugins and their enabled status.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 import os
@@ -34,7 +34,7 @@ print(json.dumps(result, indent=2))`;
 			plugin_name: z.string().describe("Plugin name to enable"),
 		},
 		async ({ plugin_name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -75,7 +75,7 @@ print(json.dumps({"success": True, "plugin": "{{plugin_name}}", "hint": "Restart
 			plugin_name: z.string().describe("Plugin name to disable"),
 		},
 		async ({ plugin_name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
