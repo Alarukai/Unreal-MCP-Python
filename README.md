@@ -89,6 +89,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **world-partition** | 4 | Data layers, streaming sources, loaded cells |
 | **remote-control-presets** | 5 | List/get/set preset properties, call preset functions |
 | **plugin** | 3 | List, enable, disable plugins in .uproject |
+| **environment** | 14 | Lighting, fog, post-process, physics simulation/constraints, splines |
 
 ## Architecture
 

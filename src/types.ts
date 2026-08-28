@@ -89,6 +89,7 @@ export const ALL_MODULES = [
 	"editor-utils",
 	"remote-control-presets",
 	"plugin",
+	"environment",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];
