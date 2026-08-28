@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **127 tools** across **16 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **152 tools** across **19 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -78,7 +78,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **blueprint** | 12 | Create blueprints, add components/variables/functions, graph nodes |
 | **build** | 9 | Build targets, cook content, package, generate project files |
 | **material** | 13 | Create materials/instances, add expressions, wire graphs |
-| **console** | 6 | Execute Python, console commands, screenshots, viewport camera |
+| **console** | 7 | Execute Python, console commands, screenshots, viewport camera, read editor log |
 | **sequencer** | 8 | Create sequences, add tracks/bindings, set playback range |
 | **animation** | 6 | Animation blueprints, montages, modifiers, skeletal mesh |
 | **niagara** | 8 | Spawn particle systems, set parameters (float/vector/color/bool) |
@@ -90,6 +90,8 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **remote-control-presets** | 5 | List/get/set preset properties, call preset functions |
 | **plugin** | 3 | List, enable, disable plugins in .uproject |
 | **environment** | 14 | Lighting, fog, post-process, physics simulation/constraints, splines |
+| **audio** | 3 | Spawn ambient sounds, set volume/pitch/auto-activate, sound asset metadata |
+| **navigation** | 3 | Build NavMesh, synchronous pathfinding queries, NavMeshBoundsVolume info |
 
 ## Architecture
 

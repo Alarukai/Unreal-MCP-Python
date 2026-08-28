@@ -90,6 +90,8 @@ export const ALL_MODULES = [
 	"remote-control-presets",
 	"plugin",
 	"environment",
+	"audio",
+	"navigation",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];

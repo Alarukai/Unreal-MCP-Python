@@ -4,12 +4,14 @@ import type { UnrealMcpConfig } from "../types.js";
 import { registerActorTools } from "./actor.js";
 import { registerAnimationTools } from "./animation.js";
 import { registerAssetTools } from "./asset.js";
+import { registerAudioTools } from "./audio.js";
 import { registerBlueprintTools } from "./blueprint.js";
 import { registerBuildTools } from "./build.js";
 import { registerConsoleTools } from "./console.js";
 import { registerEditorUtilsTools } from "./editor-utils.js";
 import { registerEnvironmentTools } from "./environment.js";
 import { registerMaterialTools } from "./material.js";
+import { registerNavigationTools } from "./navigation.js";
 import { registerNiagaraTools } from "./niagara.js";
 import { registerPluginTools } from "./plugin.js";
 import { registerProfilingTools } from "./profiling.js";
@@ -27,12 +29,14 @@ const MODULE_REGISTRARS: Record<
 	console: registerConsoleTools,
 	actor: registerActorTools,
 	asset: registerAssetTools,
+	audio: registerAudioTools,
 	build: registerBuildTools,
 	blueprint: registerBlueprintTools,
 	material: registerMaterialTools,
 	sequencer: registerSequencerTools,
 	animation: registerAnimationTools,
 	niagara: registerNiagaraTools,
+	navigation: registerNavigationTools,
 	testing: registerTestingTools,
 	"source-control": registerSourceControlTools,
 	profiling: registerProfilingTools,
