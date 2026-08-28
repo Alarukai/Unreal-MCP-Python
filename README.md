@@ -232,6 +232,23 @@ reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s p
 
 Install the C++ plugin from `plugin/UnrealMCPBridge/` into your project's `Plugins/` directory. This enables `add_graph_node`, `connect_graph_nodes`, and `remove_graph_node`.
 
+## Roadmap
+
+Planned work is split by whether it needs the optional C++ plugin:
+
+- **[Tier 1 — no plugin](docs/ROADMAP.md)** — achievable today over Python
+  Remote Execution / Remote Control. Covers communication improvements
+  (`read_log` to surface the real UE Output Log, build progress notifications,
+  editor-context resources) and new domains (a full **environment** module —
+  lighting, fog, post-process, physics, splines — plus **audio**, **navigation**,
+  and **widget** authoring), along with read-back/inspect gaps in the niagara,
+  animation, sequencer, and material modules. Also captures the security
+  invariants to keep as the surface grows.
+- **[Tier 2 — optional C++ plugin](docs/TIER2-PLUGIN.md)** — capabilities Unreal
+  does not expose to Python: real Blueprint graph node editing, offscreen
+  render-to-PNG feedback (graph / widget / material thumbnail), node auto-layout,
+  and Blueprint debugging (breakpoints, watches, compile-error introspection).
+
 ## Development
 
 ```bash
