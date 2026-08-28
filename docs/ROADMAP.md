@@ -214,18 +214,29 @@ on the Python fallback). Silent drops mislead the agent.
 Each PR: build + lint green, tests for any pure helper, server smoke test
 (`tools/list` count + one `tools/call`), README table updated.
 
-- **PR 1 — `read_log` + editor-context resources (A1, A3).** Smallest, highest
+- [x] **PR 1 — `read_log` + editor-context resources (A1, A3).** Smallest, highest
   ROI; upgrades diagnostics for everything else. Ship first.
-- **PR 2 — Environment module (B1).** Largest domain gap; 15 tools; standard
-  component APIs. Split into two PRs (lighting/fog/postprocess/physics, then
-  splines) if review size matters.
-- **PR 3 — Audio + Navigation (B2, B3).** Two small domains, six tools.
-- **PR 4 — Widget module without render (B4).** New domain; mind the
+- [x] **PR 2 — Environment module (B1).** Largest domain gap; 14 tools; standard
+  component APIs.
+- [x] **PR 3 — Audio + Navigation (B2, B3).** Two small domains, six tools.
+- [x] **PR 4 — Widget module without render (B4).** New domain; mind the
   no-sync-compile-mid-mutation rule.
-- **PR 5 — Read-back gaps (B5).** Niagara/anim/sequencer inspect + keyframe;
+- [x] **PR 5 — Read-back gaps (B5).** Niagara/anim/sequencer inspect + keyframe;
   material functions.
-- **PR 6 (optional) — Progress notifications (A2)** and, opportunistically, the
-  response envelope (A4).
+- [ ] **PR 6 (optional) — Progress notifications (A2)** and, opportunistically, the
+  response envelope (A4). Not yet implemented — deliberately deferred per this
+  roadmap's own "optional" framing; the mandatory Tier 1 scope (PR1-5) is done.
+
+PR1-5 are implemented on `claude/python-discovery-fix` (commits `e6f2b5e`,
+`98a5f16`, `2d31194`, `93cdeb9`, `afce1e3`), each verified via: `npm run build`
++ `npm run lint`; a Node.js harness that imports the compiled tool module,
+captures every generated Python script across representative argument
+combinations, and validates each with `python3 -c "import ast; ast.parse(...)"`;
+a stdio JSON-RPC smoke test confirming tool/resource registration counts;
+`npx vitest run`; and a README tool-count update. This caught two real bugs
+before they shipped — an empty `try:` block in `set_physics_simulation` (PR2)
+and a validated-but-never-used `bool_value` parameter in
+`edit_material_function` (PR5) — see those commits for details.
 
 Safety items (Part C) are cross-cutting: fold C1/C3 into a CI check, apply
 C2/C4 the moment any path/download tool is introduced, and treat C5/C6 as
