@@ -215,7 +215,7 @@ reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s p
 **Still getting "No Unreal Editor nodes found"?**
 - **VPN/Tailscale users:** Tailscale's virtual network adapter can hijack multicast. Try temporarily disabling Tailscale, or disable the Tailscale network adapter in Windows Network Connections.
 - **Firewall:** Allow UDP port 6766 and TCP port 6776, or temporarily disable Windows Firewall to test.
-- **Multiple adapters:** WSL, Hyper-V, and VPN adapters can all cause multicast to bind to the wrong interface. Disabling unused adapters helps.
+- **Multiple adapters (Bluetooth PAN, Wi-Fi Direct, an unplugged NIC, WSL, Hyper-V, VPNs):** once `UNREAL_MCP_MULTICAST_BIND` is widened past `127.0.0.1`, discovery pings can leave on the wrong adapter — Windows often picks a link-local `169.254.*` one the editor never sees, even though the editor is answering pings sent on the correct adapter. Set `UNREAL_MCP_MULTICAST_IFACE` to your real LAN IP to pin the outbound interface explicitly, rather than disabling unused adapters.
 
 ### Optional (for Remote Control tools)
 
