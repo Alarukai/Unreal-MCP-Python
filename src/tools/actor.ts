@@ -19,8 +19,9 @@ export function registerActorTools(
 				.describe("Filter by actor class (e.g., StaticMeshActor, PointLight)"),
 			name_filter: z.string().optional().describe("Filter by name substring"),
 		},
+		{ readOnlyHint: true },
 		async ({ class_filter, name_filter }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -65,7 +66,7 @@ print(json.dumps(results, indent=2))`,
 				.describe("Actor scale (default: 1,1,1)"),
 		},
 		async ({ actor_class, label, location, rotation, scale }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -118,8 +119,9 @@ else:
 		{
 			name: z.string().describe("Actor name or label to delete"),
 		},
+		{ destructiveHint: true },
 		async ({ name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -145,8 +147,9 @@ print(json.dumps({"deleted": deleted, "name": "{{name}}"}))`,
 		{
 			name: z.string().describe("Actor name or label"),
 		},
+		{ readOnlyHint: true },
 		async ({ name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -188,7 +191,7 @@ else:
 			scale: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional(),
 		},
 		async ({ name, location, rotation, scale }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -245,7 +248,7 @@ if not found:
 			property_value: z.unknown().describe("Value to set"),
 		},
 		async ({ actor_path, property_name, property_value }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			await manager.rc.setProperty(actor_path, property_name, property_value);
 			return {
 				content: [{ type: "text", text: `Set ${property_name} on ${actor_path}` }],
@@ -259,8 +262,9 @@ if not found:
 		{
 			name: z.string().describe("Actor name or label"),
 		},
+		{ readOnlyHint: true },
 		async ({ name }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -288,7 +292,7 @@ else:
 			names: z.array(z.string()).describe("Actor names or labels to select"),
 		},
 		async ({ names }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const namesJson = JSON.stringify(names);
 			const script = inlineScript(
 				`import unreal
@@ -320,7 +324,7 @@ print(json.dumps({"selected": len(to_select)}))`,
 				.describe("Offset for duplicated actors"),
 		},
 		async ({ names, offset }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const namesJson = JSON.stringify(names);
 			const script = inlineScript(
 				`import unreal
@@ -358,7 +362,7 @@ print(json.dumps({"duplicated": duplicated}))`,
 			tags: z.array(z.string()).describe("Tags to set"),
 		},
 		async ({ name, tags }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const tagsJson = JSON.stringify(tags);
 			const script = inlineScript(
 				`import unreal

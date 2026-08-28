@@ -16,6 +16,22 @@ export interface SubprocessConfig {
 	};
 }
 
+// Defense-in-depth: even without a shell, reject characters that have caused
+// argument-escaping bugs in platform process launchers (e.g. Windows .bat/.cmd
+// invocation, which still goes through cmd.exe internally). No legitimate
+// build argument (paths, target names, platform names) needs these characters.
+const UNSAFE_ARG_PATTERN = /[;&|`$<>\n\r]/;
+
+export function assertSafeArg(arg: string): void {
+	if (UNSAFE_ARG_PATTERN.test(arg)) {
+		throw new UnrealMcpError(
+			`Rejected unsafe subprocess argument (contains shell metacharacters): ${arg}`,
+			"UNSAFE_ARGUMENT",
+			{ arg },
+		);
+	}
+}
+
 /**
  * Runs UAT, UBT, and commandlets as child processes.
  * These don't require the editor to be running.
@@ -184,13 +200,20 @@ export class SubprocessRunner {
 	}
 
 	private async spawn(command: string, args: string[], timeout: number): Promise<SubprocessResult> {
+		for (const arg of args) {
+			assertSafeArg(arg);
+		}
+
 		return new Promise<SubprocessResult>((resolve, reject) => {
 			const startTime = Date.now();
 			const stdoutChunks: string[] = [];
 			const stderrChunks: string[] = [];
 
+			// No shell: args are passed directly to the OS process (argv array), so shell
+			// metacharacters in any argument are never interpreted. Node's built-in
+			// .bat/.cmd handling on Windows already invokes cmd.exe safely internally
+			// (requires Node >=20.12.2 / >=18.20.2 — see package.json engines).
 			const child = spawn(command, args, {
-				shell: true,
 				stdio: ["pipe", "pipe", "pipe"],
 			});
 

@@ -23,8 +23,9 @@ export function registerAssetTools(
 				.describe("Filter by asset class (e.g., StaticMesh, Material, Blueprint)"),
 			recursive: z.boolean().default(true).describe("Include subdirectories"),
 		},
+		{ readOnlyHint: true },
 		async ({ directory, class_filter, recursive }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -59,8 +60,9 @@ print(json.dumps(results[:500], indent=2))`,
 			query: z.string().describe("Search query (asset name substring)"),
 			class_filter: z.string().optional().describe("Filter by asset class"),
 		},
+		{ readOnlyHint: true },
 		async ({ query, class_filter }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -93,8 +95,9 @@ print(json.dumps(results, indent=2))`,
 		{
 			asset_path: z.string().describe("Asset path (e.g., /Game/Meshes/MyMesh.MyMesh)"),
 		},
+		{ readOnlyHint: true },
 		async ({ asset_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -124,22 +127,23 @@ else:
 			asset_path: z.string().describe("Asset package path (e.g., /Game/Meshes/MyMesh)"),
 			direction: z.enum(["dependencies", "referencers", "both"]).default("both"),
 		},
+		{ readOnlyHint: true },
 		async ({ asset_path, direction }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
 path = '{{asset_path}}'
 result = {}
-if '${direction}' in ('dependencies', 'both'):
+if '{{direction}}' in ('dependencies', 'both'):
     deps = registry.get_dependencies(path)
     result['dependencies'] = [str(d) for d in deps] if deps else []
-if '${direction}' in ('referencers', 'both'):
+if '{{direction}}' in ('referencers', 'both'):
     refs = registry.get_referencers(path)
     result['referencers'] = [str(r) for r in refs] if refs else []
 print(json.dumps(result, indent=2))`,
-				{ asset_path },
+				{ asset_path, direction },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -153,8 +157,9 @@ print(json.dumps(result, indent=2))`,
 			source_path: z.string().describe("Current asset path"),
 			destination_path: z.string().describe("New asset path"),
 		},
+		{ destructiveHint: true },
 		async ({ source_path, destination_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -175,7 +180,7 @@ print(json.dumps({"success": success}))`,
 			destination_path: z.string().describe("Destination asset path"),
 		},
 		async ({ source_path, destination_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -195,20 +200,21 @@ print(json.dumps({"success": result is not None, "path": '{{destination_path}}' 
 			asset_path: z.string().describe("Asset path to delete"),
 			force: z.boolean().default(false).describe("Delete even if referenced by other assets"),
 		},
+		{ destructiveHint: true },
 		async ({ asset_path, force }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
 refs = registry.get_referencers('{{asset_path}}')
 ref_list = [str(r) for r in refs] if refs else []
-if ref_list and not ${force ? "True" : "False"}:
+if ref_list and not {{force}}:
     print(json.dumps({"error": "Asset has referencers", "referencers": ref_list, "hint": "Use force=true to delete anyway"}))
 else:
     success = unreal.EditorAssetLibrary.delete_asset('{{asset_path}}')
     print(json.dumps({"deleted": success}))`,
-				{ asset_path },
+				{ asset_path, force: force ? "True" : "False" },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -225,7 +231,7 @@ else:
 				.describe("Content directory to import into (e.g., /Game/Meshes)"),
 		},
 		async ({ source_file, destination_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -255,7 +261,7 @@ else:
 			output_path: z.string().describe("Output file path on disk"),
 		},
 		async ({ asset_path, output_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -279,8 +285,9 @@ print(json.dumps({"success": success, "output": '{{output_path}}'}))`,
 		{
 			directory: z.string().default("/Game").describe("Content directory to validate"),
 		},
+		{ readOnlyHint: true },
 		async ({ directory }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -308,7 +315,7 @@ print(json.dumps({"validated": True}))`,
 			asset_path: z.string().describe("Asset path to save"),
 		},
 		async ({ asset_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -322,7 +329,7 @@ print(json.dumps({"saved": success}))`,
 	);
 
 	server.tool("save_all", "Save all dirty (modified) assets.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)
@@ -379,6 +386,7 @@ print(json.dumps({"success": True}))`;
 		"content_audit",
 		"Run content audit to find costly or problematic assets (runs ContentAudit commandlet).",
 		{},
+		{ readOnlyHint: true },
 		async () => {
 			const result = await manager.subprocess.runCommandlet("ContentAudit");
 			return {
@@ -402,8 +410,9 @@ print(json.dumps({"success": True}))`;
 			target_path: z.string().describe("Target asset path to keep"),
 			source_paths: z.array(z.string()).describe("Source asset paths to consolidate into target"),
 		},
+		{ destructiveHint: true },
 		async ({ target_path, source_paths }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const sourcePathsJson = JSON.stringify(source_paths);
 			const script = inlineScript(
 				`import unreal
@@ -418,6 +427,141 @@ if target and sources:
 else:
     print(json.dumps({"error": "Could not load target or source assets"}))`,
 				{ target_path, source_paths_json: sourcePathsJson },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"find_orphan_assets",
+		"Find assets in a directory that have zero referencers (nothing in the project uses them) — candidates for cleanup.",
+		{
+			directory: z.string().default("/Game").describe("Content directory to scan"),
+			max_scan: z
+				.number()
+				.int()
+				.min(1)
+				.max(2000)
+				.default(500)
+				.describe("Maximum number of assets to scan (registry lookups are per-asset)"),
+		},
+		{ readOnlyHint: true },
+		async ({ directory, max_scan }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+assets = registry.get_assets_by_path('{{directory}}', True) or []
+orphans = []
+scanned = 0
+for a in assets[:{{max_scan}}]:
+    scanned += 1
+    package = str(a.package_name)
+    refs = registry.get_referencers(package)
+    if not refs:
+        cls = str(a.asset_class_path.asset_name) if hasattr(a, 'asset_class_path') else str(a.asset_class)
+        orphans.append({"name": str(a.asset_name), "path": package, "class": cls})
+print(json.dumps({"orphans": orphans, "orphan_count": len(orphans), "scanned": scanned, "total_in_directory": len(assets)}, indent=2))`,
+				{ directory, max_scan },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"find_circular_dependencies",
+		"Find dependency cycles that lead back to the given asset (A depends on B depends on ... depends on A).",
+		{
+			asset_path: z.string().describe("Asset package path to check (e.g., /Game/Meshes/MyMesh)"),
+			max_depth: z
+				.number()
+				.int()
+				.min(1)
+				.max(30)
+				.default(10)
+				.describe("Maximum dependency chain depth to search"),
+		},
+		{ readOnlyHint: true },
+		async ({ asset_path, max_depth }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+start = '{{asset_path}}'
+max_depth = {{max_depth}}
+cycles = []
+
+# Prune only on the current recursion path (chain), NOT a global visited set:
+# a node first reached via a branch that doesn't loop back to start would be
+# marked globally visited and then skipped on a later branch that DOES loop
+# back, silently missing that cycle. The depth cap and 20-cycle result cap
+# bound the cost instead.
+def dfs(path, chain, depth):
+    if depth > max_depth or len(cycles) >= 20:
+        return
+    deps = registry.get_dependencies(path) or []
+    for d in deps:
+        d_str = str(d)
+        if d_str == start:
+            cycles.append(chain + [d_str])
+            continue
+        if d_str in chain:
+            continue
+        dfs(d_str, chain + [d_str], depth + 1)
+
+dfs(start, [start], 1)
+print(json.dumps({"start": start, "cycles": cycles, "cycle_count": len(cycles), "max_depth_searched": max_depth}, indent=2))`,
+				{ asset_path, max_depth },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"get_dependency_tree",
+		"Get an asset's dependency graph as a recursive tree, several levels deep.",
+		{
+			asset_path: z.string().describe("Asset package path (e.g., /Game/Meshes/MyMesh)"),
+			depth: z.number().int().min(1).max(5).default(2).describe("How many levels deep to recurse"),
+			max_children: z
+				.number()
+				.int()
+				.min(1)
+				.max(100)
+				.default(20)
+				.describe("Maximum children to expand per node, to keep the tree bounded"),
+		},
+		{ readOnlyHint: true },
+		async ({ asset_path, depth, max_children }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+max_children = {{max_children}}
+
+def build_tree(path, remaining_depth, seen):
+    if path in seen:
+        return {"path": path, "cycle": True}
+    if remaining_depth <= 0:
+        return {"path": path, "truncated": True}
+    seen = seen | {path}
+    deps = registry.get_dependencies(path) or []
+    dep_list = [str(d) for d in deps]
+    children = [build_tree(d, remaining_depth - 1, seen) for d in dep_list[:max_children]]
+    node = {"path": path, "children": children}
+    if len(dep_list) > max_children:
+        node["children_omitted"] = len(dep_list) - max_children
+    return node
+
+tree = build_tree('{{asset_path}}', {{depth}}, set())
+print(json.dumps(tree, indent=2))`,
+				{ asset_path, depth, max_children },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };

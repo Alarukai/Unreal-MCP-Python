@@ -16,7 +16,7 @@ export function registerEditorUtilsTools(
 			widget_path: z.string().describe("Editor Utility Widget asset path"),
 		},
 		async ({ widget_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -41,7 +41,7 @@ else:
 			blueprint_path: z.string().describe("Editor Utility Blueprint asset path"),
 		},
 		async ({ blueprint_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -67,7 +67,7 @@ else:
 			lod_count: z.number().min(1).max(8).default(3).describe("Number of LOD levels"),
 		},
 		async ({ mesh_path, lod_count }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -75,16 +75,16 @@ mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
 if mesh and isinstance(mesh, unreal.StaticMesh):
     lib = unreal.EditorStaticMeshLibrary
     options = unreal.EditorScriptingMeshReductionOptions()
-    for i in range(1, ${lod_count}):
+    for i in range(1, {{lod_count}}):
         reduction = unreal.EditorScriptingMeshReductionPerLODSettings()
         reduction.percent_triangles = max(0.1, 1.0 - (i * 0.3))
         options.reduction_options.append(reduction)
-    lib.set_lod_reduction_settings(mesh, ${lod_count - 1}, options)
+    lib.set_lod_reduction_settings(mesh, {{lod_count_minus_1}}, options)
     unreal.EditorAssetLibrary.save_asset('{{mesh_path}}')
-    print(json.dumps({"success": True, "lods": ${lod_count}}))
+    print(json.dumps({"success": True, "lods": {{lod_count}}}))
 else:
     print(json.dumps({"error": "StaticMesh not found: {{mesh_path}}"}))`,
-				{ mesh_path },
+				{ mesh_path, lod_count, lod_count_minus_1: lod_count - 1 },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -102,26 +102,26 @@ else:
 				.describe("Collision type"),
 		},
 		async ({ mesh_path, type }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
 mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
 if mesh and isinstance(mesh, unreal.StaticMesh):
     lib = unreal.EditorStaticMeshLibrary
-    if '${type}' == 'box':
+    if '{{type}}' == 'box':
         lib.add_simple_collisions(mesh, unreal.ScriptingCollisionShapeType.BOX)
-    elif '${type}' == 'sphere':
+    elif '{{type}}' == 'sphere':
         lib.add_simple_collisions(mesh, unreal.ScriptingCollisionShapeType.SPHERE)
-    elif '${type}' == 'capsule':
+    elif '{{type}}' == 'capsule':
         lib.add_simple_collisions(mesh, unreal.ScriptingCollisionShapeType.CAPSULE)
     else:
         lib.set_convex_decomposition_collisions(mesh, 4, 16)
     unreal.EditorAssetLibrary.save_asset('{{mesh_path}}')
-    print(json.dumps({"success": True, "type": "${type}"}))
+    print(json.dumps({"success": True, "type": "{{type}}"}))
 else:
     print(json.dumps({"error": "StaticMesh not found: {{mesh_path}}"}))`,
-				{ mesh_path },
+				{ mesh_path, type },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -135,7 +135,7 @@ else:
 			mesh_path: z.string().describe("Static mesh asset path"),
 		},
 		async ({ mesh_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -155,7 +155,7 @@ else:
 	);
 
 	server.tool("undo", "Undo the last editor action.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 success = unreal.SystemLibrary.execute_console_command(None, 'transaction undo')
@@ -165,7 +165,7 @@ print(json.dumps({"undone": True}))`;
 	});
 
 	server.tool("redo", "Redo the last undone editor action.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 success = unreal.SystemLibrary.execute_console_command(None, 'transaction redo')
@@ -181,7 +181,7 @@ print(json.dumps({"redone": True}))`;
 			count: z.number().default(20).describe("Number of recent transactions to return"),
 		},
 		async ({ count }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = `import unreal
 import json
 # Transaction history is accessible via GEditor->Trans

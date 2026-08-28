@@ -1,4 +1,5 @@
 import type { ConnectionStatus, PluginCapabilities, UnrealMcpConfig } from "../types.js";
+import { PythonExecutionError } from "../utils/errors.js";
 import { PluginBridgeClient } from "./plugin-bridge.js";
 import { PythonExecClient } from "./python-exec.js";
 import { RemoteControlClient } from "./remote-control.js";
@@ -21,6 +22,9 @@ export class ConnectionManager {
 		editorRunning: false,
 	};
 
+	/** Timestamp of the last re-probe triggered by requireEditor(), for cooldown. */
+	private _lastEditorReprobe = 0;
+
 	async initialize(config: UnrealMcpConfig): Promise<void> {
 		// Initialize all transports
 		this.rc = new RemoteControlClient({
@@ -33,6 +37,7 @@ export class ConnectionManager {
 			host: "127.0.0.1",
 			port: config.pythonExecPort,
 			timeout: config.timeouts.pythonExec,
+			multicastBindAddress: config.multicastBindAddress,
 		});
 
 		this.plugin = new PluginBridgeClient({
@@ -83,8 +88,24 @@ export class ConnectionManager {
 	/**
 	 * Ensure the editor is connected via at least one transport.
 	 * Throws if no editor connection is available.
+	 *
+	 * The connection status is otherwise only probed at server startup, but an
+	 * MCP server is typically launched by its client (e.g. Claude Desktop/Code)
+	 * before the UE editor is running — and the editor is often started or
+	 * restarted mid-session. So when the cached status says "not connected",
+	 * re-probe once (with a short cooldown) before failing: a tool call made
+	 * after the editor launches then self-heals instead of failing permanently
+	 * until the whole MCP server is restarted.
 	 */
-	requireEditor(): void {
+	async requireEditor(): Promise<void> {
+		if (this._status.editorRunning) return; // Fast path: connection already known good.
+
+		const now = Date.now();
+		if (now - this._lastEditorReprobe > 2000) {
+			this._lastEditorReprobe = now;
+			await this.refreshStatus();
+		}
+
 		if (!this._status.editorRunning) {
 			throw new Error(
 				"Unreal Editor is not connected. Make sure the editor is running with " +
@@ -118,15 +139,43 @@ export class ConnectionManager {
 			try {
 				return await this.python.execute(code);
 			} catch (error) {
-				// If Python exec fails, fall through to RC if available
+				// Distinguish a script error from a connection error. A
+				// PythonExecutionError means the code round-tripped and the *script*
+				// raised — the connection is fine. That's the common case (agent-
+				// written Python fails constantly), so do NOT invalidate the
+				// transport and do NOT fall back to RC (which would just re-run the
+				// same broken code and surface a worse error) — surface the Python
+				// error directly.
+				if (error instanceof PythonExecutionError) {
+					throw error;
+				}
+				// Anything else (raw socket error, NO_UE_NODES, TimeoutError) is a
+				// connection-level failure. Invalidate the cached status so the next
+				// requireEditor() re-probes instead of trusting a stale "connected"
+				// flag until the whole MCP server is restarted, then fall back to RC
+				// for this call if available.
+				// (One edge case heals a call late: if the socket drops *mid*-execution
+				// the client wraps it as PythonExecutionError, so it's misread as a
+				// script error here — but the next call's connection attempt fails
+				// with a connection-typed error and invalidates then.)
+				this._status.pythonExec = false;
+				this._status.editorRunning = this._status.remoteControl;
 				if (!this._status.remoteControl) throw error;
-				console.error(`[unreal-mcp] Python exec failed, falling back to Remote Control: ${error}`);
+				console.error(
+					`[unreal-mcp] Python exec connection failed, falling back to Remote Control: ${error}`,
+				);
 			}
 		}
 
 		// Fall back to Remote Control API
 		if (this._status.remoteControl) {
-			return this.rc.executePython(code);
+			try {
+				return await this.rc.executePython(code);
+			} catch (error) {
+				this._status.remoteControl = false;
+				this._status.editorRunning = this._status.pythonExec;
+				throw error;
+			}
 		}
 
 		throw new Error(

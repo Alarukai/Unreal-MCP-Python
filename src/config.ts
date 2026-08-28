@@ -9,6 +9,7 @@ const DEFAULTS: UnrealMcpConfig = {
 	remoteControlWsPort: 30020,
 	pythonExecPort: 6776,
 	pluginBridgePort: 55557,
+	multicastBindAddress: "127.0.0.1",
 	platform: "Win64",
 	configuration: "Development",
 	enabledModules: [...ALL_MODULES],
@@ -53,6 +54,9 @@ function loadEnvVars(): Partial<UnrealMcpConfig> {
 	if (process.env.UNREAL_MCP_PYTHON_PORT) {
 		config.pythonExecPort = Number.parseInt(process.env.UNREAL_MCP_PYTHON_PORT, 10);
 	}
+	if (process.env.UNREAL_MCP_MULTICAST_BIND) {
+		config.multicastBindAddress = process.env.UNREAL_MCP_MULTICAST_BIND;
+	}
 	if (process.env.UNREAL_MCP_PLATFORM) {
 		config.platform = process.env.UNREAL_MCP_PLATFORM;
 	}
@@ -66,7 +70,7 @@ function loadEnvVars(): Partial<UnrealMcpConfig> {
 	return config;
 }
 
-function parseCliArgs(argv: string[]): Partial<UnrealMcpConfig> {
+export function parseCliArgs(argv: string[]): Partial<UnrealMcpConfig> {
 	const config: Partial<UnrealMcpConfig> = {};
 
 	for (let i = 0; i < argv.length; i++) {
@@ -92,6 +96,10 @@ function parseCliArgs(argv: string[]): Partial<UnrealMcpConfig> {
 				break;
 			case "--plugin-port":
 				config.pluginBridgePort = Number.parseInt(next, 10);
+				i++;
+				break;
+			case "--multicast-bind":
+				config.multicastBindAddress = next;
 				i++;
 				break;
 			case "--platform":

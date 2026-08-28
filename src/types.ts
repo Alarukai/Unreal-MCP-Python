@@ -6,6 +6,8 @@ export interface UnrealMcpConfig {
 	remoteControlWsPort: number;
 	pythonExecPort: number;
 	pluginBridgePort: number;
+	/** Bind address for the Python Remote Execution UDP multicast discovery socket. Defaults to 127.0.0.1 (loopback-only). Only widen this if the editor and this server run on different network namespaces on the same host (e.g. WSL) and discovery fails. */
+	multicastBindAddress: string;
 	platform: string;
 	configuration: string;
 	enabledModules: string[];

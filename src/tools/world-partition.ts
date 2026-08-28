@@ -14,7 +14,7 @@ export function registerWorldPartitionTools(
 		"List all data layers in the current World Partition level.",
 		{},
 		async () => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = `import unreal
 import json
 world = unreal.EditorLevelLibrary.get_editor_world()
@@ -45,7 +45,7 @@ else:
 			state: z.enum(["Loaded", "Activated", "Unloaded"]).describe("Target state"),
 		},
 		async ({ layer_name, state }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -55,15 +55,15 @@ if manager:
     layers = manager.get_all_data_layers()
     for layer in layers:
         if layer.get_data_layer_short_name() == '{{layer_name}}':
-            state_enum = getattr(unreal.DataLayerRuntimeState, '${state}')
+            state_enum = getattr(unreal.DataLayerRuntimeState, '{{state}}')
             manager.set_data_layer_runtime_state(layer, state_enum)
-            print(json.dumps({"success": True, "layer": "{{layer_name}}", "state": "${state}"}))
+            print(json.dumps({"success": True, "layer": "{{layer_name}}", "state": "{{state}}"}))
             break
     else:
         print(json.dumps({"error": "Data layer not found: {{layer_name}}"}))
 else:
     print(json.dumps({"error": "No DataLayerManager found"}))`,
-				{ layer_name },
+				{ layer_name, state },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -71,7 +71,7 @@ else:
 	);
 
 	server.tool("get_loaded_cells", "Query currently loaded world partition cells.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 world = unreal.EditorLevelLibrary.get_editor_world()
@@ -92,7 +92,7 @@ else:
 			radius: z.number().default(10000).describe("Streaming radius in units"),
 		},
 		async ({ actor_name, radius }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json

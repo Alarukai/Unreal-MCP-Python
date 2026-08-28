@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ConnectionManager } from "../transports/connection-manager.js";
 import type { UnrealMcpConfig } from "../types.js";
 import { inlineScript } from "../utils/template.js";
+import { assertSafeFilename } from "../utils/validate.js";
 
 export function registerProfilingTools(
 	server: McpServer,
@@ -21,7 +22,7 @@ export function registerProfilingTools(
 				),
 		},
 		async ({ channels }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const channelStr = channels.join(",");
 			const script = inlineScript(
 				`import unreal
@@ -36,7 +37,7 @@ print(json.dumps({"started": True, "channels": "{{channels}}"}))`,
 	);
 
 	server.tool("stop_trace", "Stop the active Unreal Insights trace session.", {}, async () => {
-		manager.requireEditor();
+		await manager.requireEditor();
 		const script = `import unreal
 import json
 unreal.SystemLibrary.execute_console_command(None, 'trace.stop')
@@ -54,7 +55,7 @@ print(json.dumps({"stopped": True}))`;
 				.describe("Stat command (e.g., 'fps', 'unit', 'memory', 'scenerendering', 'game', 'slow')"),
 		},
 		async ({ stat }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -74,14 +75,16 @@ print(json.dumps({"executed": "stat {{stat}}"}))`,
 			filename: z.string().optional().describe("Output CSV filename (default: auto-generated)"),
 		},
 		async ({ filename }) => {
-			manager.requireEditor();
-			const cmd = filename ? `csvprofile start ${filename}` : "csvprofile start";
+			await manager.requireEditor();
+			assertSafeFilename(filename);
 			const script = inlineScript(
 				`import unreal
 import json
-unreal.SystemLibrary.execute_console_command(None, '{{cmd}}')
+filename = '{{filename}}'
+cmd = 'csvprofile start ' + filename if filename else 'csvprofile start'
+unreal.SystemLibrary.execute_console_command(None, cmd)
 print(json.dumps({"started": True}))`,
-				{ cmd },
+				{ filename: filename || "" },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -93,7 +96,7 @@ print(json.dumps({"started": True}))`,
 		"Stop CSV profiling capture and save results.",
 		{},
 		async () => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = `import unreal
 import json
 unreal.SystemLibrary.execute_console_command(None, 'csvprofile stop')

@@ -18,7 +18,7 @@ export function registerAnimationTools(
 			path: z.string().default("/Game/Animations").describe("Content directory"),
 		},
 		async ({ name, skeleton_path, path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -48,7 +48,7 @@ else:
 			sequence_path: z.string().describe("AnimSequence asset path"),
 		},
 		async ({ sequence_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -80,7 +80,7 @@ else:
 			path: z.string().default("/Game/Animations").describe("Content directory"),
 		},
 		async ({ name, sequence_path, path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -111,21 +111,21 @@ else:
 			lod_count: z.number().min(1).max(8).describe("Number of LODs to generate"),
 		},
 		async ({ mesh_path, lod_count }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
 mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
 if mesh and isinstance(mesh, unreal.SkeletalMesh):
     lib = unreal.EditorSkeletalMeshLibrary
-    for i in range(1, ${lod_count}):
+    for i in range(1, {{lod_count}}):
         reduction = 0.5 ** i
         lib.regenerate_lod(mesh, i, reduction)
     unreal.EditorAssetLibrary.save_asset('{{mesh_path}}')
-    print(json.dumps({"success": True, "lods": ${lod_count}}))
+    print(json.dumps({"success": True, "lods": {{lod_count}}}))
 else:
     print(json.dumps({"error": "SkeletalMesh not found: {{mesh_path}}"}))`,
-				{ mesh_path },
+				{ mesh_path, lod_count },
 			);
 			const result = await manager.runPython(script);
 			return { content: [{ type: "text", text: result }] };
@@ -139,7 +139,7 @@ else:
 			mesh_path: z.string().describe("Skeletal mesh asset path"),
 		},
 		async ({ mesh_path }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json
@@ -164,7 +164,7 @@ else:
 			modifier_class: z.string().describe("Animation modifier class name"),
 		},
 		async ({ sequence_path, modifier_class }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = inlineScript(
 				`import unreal
 import json

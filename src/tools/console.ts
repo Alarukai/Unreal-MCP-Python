@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ConnectionManager } from "../transports/connection-manager.js";
 import type { UnrealMcpConfig } from "../types.js";
 import { inlineScript } from "../utils/template.js";
+import { assertSafeFilename } from "../utils/validate.js";
 
 export function registerConsoleTools(
 	server: McpServer,
@@ -14,7 +15,7 @@ export function registerConsoleTools(
 		"Execute arbitrary Python code in the Unreal Editor's Python environment. Has access to the full `unreal` module.",
 		{ code: z.string().describe("Python code to execute in the editor") },
 		async ({ code }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const result = await manager.runPython(code);
 			return { content: [{ type: "text", text: result }] };
 		},
@@ -25,7 +26,7 @@ export function registerConsoleTools(
 		"Run a console command in the Unreal Editor (e.g., 'stat fps', 'stat unit', 'r.SetRes 1920x1080').",
 		{ command: z.string().describe("Console command to execute") },
 		async ({ command }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			// Execute console command via Python
 			const script = inlineScript(
 				`import unreal\nunreal.SystemLibrary.execute_console_command(None, '{{command}}')`,
@@ -46,7 +47,8 @@ export function registerConsoleTools(
 				.describe("Output filename (default: screenshot_<timestamp>.png)"),
 		},
 		async ({ filename }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
+			assertSafeFilename(filename);
 			const fname = filename || `screenshot_${Date.now()}.png`;
 			const script = inlineScript(
 				`import unreal
@@ -66,7 +68,7 @@ print(path)`,
 		"Get the current editor viewport camera location and rotation.",
 		{},
 		async () => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const script = `import unreal
 import json
 try:
@@ -117,7 +119,7 @@ except Exception as e:
 				.describe("Camera rotation"),
 		},
 		async ({ location, rotation }) => {
-			manager.requireEditor();
+			await manager.requireEditor();
 			const locStr = location
 				? `unreal.Vector(${location.x}, ${location.y}, ${location.z})`
 				: "None";
