@@ -142,6 +142,69 @@ else:
 	);
 
 	server.tool(
+		"read_log",
+		"Read the tail of the Unreal Editor's Output Log from disk, optionally filtered by severity and/or category (e.g. 'LogK2Compiler' for Blueprint compile errors, 'LogBlueprint' for graph errors). Call this after a compile, import, or any operation that might have logged C++-side diagnostics that don't surface as a Python exception — a tool call can report success while the editor logged real errors.",
+		{
+			lines: z
+				.number()
+				.int()
+				.min(1)
+				.max(1000)
+				.default(100)
+				.describe("Maximum number of matching lines to return, from the end of the log"),
+			severity: z
+				.string()
+				.optional()
+				.describe("Filter to lines containing this severity marker, e.g. 'Error' or 'Warning'"),
+			category: z
+				.string()
+				.optional()
+				.describe("Filter to lines containing this log category, e.g. 'LogK2Compiler'"),
+		},
+		{ readOnlyHint: true },
+		async ({ lines, severity, category }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+import os
+
+log_dir = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_log_dir())
+try:
+    candidates = [f for f in os.listdir(log_dir) if f.endswith('.log') and '-backup-' not in f]
+except Exception as e:
+    candidates = []
+if not candidates:
+    print(json.dumps({"error": "No log file found in " + log_dir}))
+else:
+    candidates.sort(key=lambda f: os.path.getmtime(os.path.join(log_dir, f)), reverse=True)
+    log_path = os.path.join(log_dir, candidates[0])
+    with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+        all_lines = f.readlines()
+    category = '{{category}}'
+    severity = '{{severity}}'
+    max_lines = {{max_lines}}
+    filtered = []
+    for line in all_lines:
+        if category and category not in line:
+            continue
+        if severity and (severity + ':') not in line:
+            continue
+        filtered.append(line.rstrip('\\n'))
+    tail = filtered[-max_lines:]
+    print(json.dumps({"log_file": log_path, "lines": tail, "total_matched": len(filtered)}, indent=2))`,
+				{
+					category: category || "",
+					severity: severity || "",
+					max_lines: lines,
+				},
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
 		"get_connection_status",
 		"Check which Unreal Engine transports are currently connected (Remote Control, Python, Plugin Bridge).",
 		{},
