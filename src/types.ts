@@ -92,6 +92,7 @@ export const ALL_MODULES = [
 	"environment",
 	"audio",
 	"navigation",
+	"widget",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];

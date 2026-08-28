@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **152 tools** across **19 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **156 tools** across **20 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -92,6 +92,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **environment** | 14 | Lighting, fog, post-process, physics simulation/constraints, splines |
 | **audio** | 3 | Spawn ambient sounds, set volume/pitch/auto-activate, sound asset metadata |
 | **navigation** | 3 | Build NavMesh, synchronous pathfinding queries, NavMeshBoundsVolume info |
+| **widget** | 4 | Create UMG Widget Blueprints, read/mutate the widget tree, set widget/slot properties |
 
 ## Architecture
 

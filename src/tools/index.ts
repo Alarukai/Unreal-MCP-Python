@@ -19,6 +19,7 @@ import { registerRemoteControlPresetsTools } from "./remote-control-presets.js";
 import { registerSequencerTools } from "./sequencer.js";
 import { registerSourceControlTools } from "./source-control.js";
 import { registerTestingTools } from "./testing.js";
+import { registerWidgetTools } from "./widget.js";
 import { registerWorldPartitionTools } from "./world-partition.js";
 
 // All tool modules registered
@@ -45,6 +46,7 @@ const MODULE_REGISTRARS: Record<
 	environment: registerEnvironmentTools,
 	"remote-control-presets": registerRemoteControlPresetsTools,
 	plugin: registerPluginTools,
+	widget: registerWidgetTools,
 };
 
 /**
