@@ -57,6 +57,9 @@ function loadEnvVars(): Partial<UnrealMcpConfig> {
 	if (process.env.UNREAL_MCP_MULTICAST_BIND) {
 		config.multicastBindAddress = process.env.UNREAL_MCP_MULTICAST_BIND;
 	}
+	if (process.env.UNREAL_MCP_MULTICAST_IFACE) {
+		config.multicastInterface = process.env.UNREAL_MCP_MULTICAST_IFACE;
+	}
 	if (process.env.UNREAL_MCP_PLATFORM) {
 		config.platform = process.env.UNREAL_MCP_PLATFORM;
 	}
@@ -100,6 +103,10 @@ export function parseCliArgs(argv: string[]): Partial<UnrealMcpConfig> {
 				break;
 			case "--multicast-bind":
 				config.multicastBindAddress = next;
+				i++;
+				break;
+			case "--multicast-iface":
+				config.multicastInterface = next;
 				i++;
 				break;
 			case "--platform":

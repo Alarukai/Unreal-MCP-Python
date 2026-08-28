@@ -38,6 +38,7 @@ export class ConnectionManager {
 			port: config.pythonExecPort,
 			timeout: config.timeouts.pythonExec,
 			multicastBindAddress: config.multicastBindAddress,
+			multicastInterface: config.multicastInterface,
 		});
 
 		this.plugin = new PluginBridgeClient({

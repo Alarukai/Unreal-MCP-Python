@@ -129,6 +129,7 @@ Three-layer priority: CLI args > environment variables > config file > defaults.
 | `UNREAL_MCP_RC_PORT` | 30010 | Remote Control API port |
 | `UNREAL_MCP_PYTHON_PORT` | 6776 | Python Remote Execution port |
 | `UNREAL_MCP_MULTICAST_BIND` | 127.0.0.1 | Bind address for the Python Remote Execution discovery socket. See the security warning above before setting this to `0.0.0.0`. |
+| `UNREAL_MCP_MULTICAST_IFACE` | auto-detect | Outbound interface (IPv4) for multicast discovery pings. Only relevant once `UNREAL_MCP_MULTICAST_BIND` is widened past loopback — on hosts with multiple network adapters (Bluetooth PAN, Wi-Fi Direct, VPNs, an unplugged NIC), the OS can pick a link-local `169.254.*` adapter that never reaches the editor. Auto-detects the first real external IPv4; set this explicitly if auto-detection picks the wrong one. |
 | `UNREAL_MCP_PLATFORM` | Win64 | Target platform |
 | `UNREAL_MCP_CONFIGURATION` | Development | Build configuration |
 | `UNREAL_MCP_MODULES` | all | Comma-separated list of modules to enable |
