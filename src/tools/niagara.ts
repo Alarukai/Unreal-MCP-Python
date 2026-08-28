@@ -291,4 +291,106 @@ else:
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
+
+	server.tool(
+		"create_niagara_system",
+		"Create a new, empty Niagara System asset.",
+		{
+			name: z.string().describe("Niagara system asset name"),
+			path: z.string().default("/Game/FX").describe("Content directory to create in"),
+		},
+		async ({ name, path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+factory = unreal.NiagaraSystemFactoryNew()
+asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
+system = asset_tools.create_asset('{{name}}', '{{path}}', unreal.NiagaraSystem, factory)
+if system:
+    print(json.dumps({"success": True, "name": system.get_name(), "path": system.get_path_name()}))
+else:
+    print(json.dumps({"error": "Failed to create Niagara system"}))`,
+				{ name, path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"read_niagara_system",
+		"Read back a Niagara System's emitter handles (best-effort — NiagaraSystem's Python-exposed reflection surface is version-sensitive; fields that fail to read come back null rather than failing the whole call).",
+		{ system_path: z.string().describe("Niagara system asset path") },
+		{ readOnlyHint: true },
+		async ({ system_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+system = unreal.EditorAssetLibrary.load_asset('{{system_path}}')
+if not system or not isinstance(system, unreal.NiagaraSystem):
+    print(json.dumps({"error": "Niagara system not found: {{system_path}}"}))
+else:
+    emitters = []
+    try:
+        handles = system.get_editor_property('EmitterHandles')
+    except Exception as e:
+        handles = []
+        print(json.dumps({"error": "Could not read EmitterHandles: " + str(e)}))
+        raise SystemExit()
+    for h in handles:
+        entry = {}
+        try:
+            entry["name"] = str(h.get_editor_property('Name'))
+        except Exception:
+            entry["name"] = None
+        try:
+            entry["is_enabled"] = h.get_editor_property('bIsEnabled')
+        except Exception:
+            entry["is_enabled"] = None
+        try:
+            emitter = h.get_editor_property('Instance')
+            entry["emitter"] = emitter.get_name() if emitter else None
+        except Exception:
+            entry["emitter"] = None
+        emitters.append(entry)
+    print(json.dumps({"success": True, "name": system.get_name(), "emitters": emitters}, indent=2))`,
+				{ system_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"add_niagara_emitter",
+		"Add an existing Niagara Emitter asset to a Niagara System. Uses NiagaraEditorLibrary.add_emitter_to_system, which is version-sensitive — verify against your engine version if this errors.",
+		{
+			system_path: z.string().describe("Niagara system asset path"),
+			emitter_path: z.string().describe("Niagara emitter asset path to add"),
+		},
+		async ({ system_path, emitter_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+system = unreal.EditorAssetLibrary.load_asset('{{system_path}}')
+emitter = unreal.EditorAssetLibrary.load_asset('{{emitter_path}}')
+if not system or not isinstance(system, unreal.NiagaraSystem):
+    print(json.dumps({"error": "Niagara system not found: {{system_path}}"}))
+elif not emitter:
+    print(json.dumps({"error": "Niagara emitter not found: {{emitter_path}}"}))
+else:
+    try:
+        handle = unreal.NiagaraEditorLibrary.add_emitter_to_system(system, emitter)
+        print(json.dumps({"success": True, "handle_added": handle is not None}))
+    except Exception as e:
+        print(json.dumps({"error": "add_emitter_to_system failed (API is engine-version-sensitive): " + str(e)}))`,
+				{ system_path, emitter_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
 }

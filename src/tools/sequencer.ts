@@ -280,4 +280,74 @@ else:
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
+
+	server.tool(
+		"add_sequence_keyframe",
+		"Add a keyframe to a channel of a track on a sequence binding. Numeric channel index selects which channel on the track's first section (e.g. a 3D Transform track has 9 float channels: location X/Y/Z, rotation X/Y/Z, scale X/Y/Z, in that order) — use get_sequence_info to find binding IDs and track names first.",
+		{
+			sequence_path: z.string().describe("LevelSequence asset path"),
+			binding_id: z.string().describe("Binding ID (from add_actor_binding or get_sequence_info)"),
+			track_type: z
+				.enum([
+					"MovieScene3DTransformTrack",
+					"MovieSceneFloatTrack",
+					"MovieSceneBoolTrack",
+					"MovieSceneVisibilityTrack",
+				])
+				.describe("Track class name (must already exist on the binding — see add_track)"),
+			channel_index: z
+				.number()
+				.int()
+				.min(0)
+				.default(0)
+				.describe("Index of the channel to key within the track's first section"),
+			frame: z.number().int().describe("Frame number to key at"),
+			value: z.number().describe("Value to key (0/1 for bool/visibility channels)"),
+		},
+		async ({ sequence_path, binding_id, track_type, channel_index, frame, value }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+seq = unreal.EditorAssetLibrary.load_asset('{{sequence_path}}')
+if not seq:
+    print(json.dumps({"error": "Sequence not found: {{sequence_path}}"}))
+else:
+    target_binding = None
+    for binding in seq.get_bindings():
+        if str(binding.get_id()) == '{{binding_id}}':
+            target_binding = binding
+            break
+    if not target_binding:
+        print(json.dumps({"error": "Binding not found: {{binding_id}}"}))
+    else:
+        target_track = None
+        for track in target_binding.get_tracks():
+            if track.get_class().get_name() == '{{track_type}}':
+                target_track = track
+                break
+        if not target_track:
+            print(json.dumps({"error": "Track not found on binding: {{track_type}}"}))
+        else:
+            sections = target_track.get_sections()
+            section = sections[0] if sections else target_track.add_section()
+            channels = section.get_channels()
+            idx = {{channel_index}}
+            if idx < 0 or idx >= len(channels):
+                print(json.dumps({"error": "channel_index out of range", "num_channels": len(channels)}))
+            else:
+                try:
+                    channel = channels[idx]
+                    frame_number = unreal.FrameNumber(value={{frame}})
+                    channel.add_key(frame_number, {{value}})
+                    unreal.EditorAssetLibrary.save_asset('{{sequence_path}}')
+                    print(json.dumps({"success": True, "channel_index": idx, "frame": {{frame}}, "value": {{value}}}))
+                except Exception as e:
+                    print(json.dumps({"error": "add_key failed (Sequencer Scripting channel API is version-sensitive): " + str(e)}))`,
+				{ sequence_path, binding_id, track_type, channel_index, frame, value },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
 }

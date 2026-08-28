@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **156 tools** across **20 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **169 tools** across **20 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -77,11 +77,11 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **asset** | 16 | List, search, import, export, rename, delete, validate assets |
 | **blueprint** | 12 | Create blueprints, add components/variables/functions, graph nodes |
 | **build** | 9 | Build targets, cook content, package, generate project files |
-| **material** | 13 | Create materials/instances, add expressions, wire graphs |
+| **material** | 17 | Create materials/instances, add expressions, wire graphs, typed material function editing |
 | **console** | 7 | Execute Python, console commands, screenshots, viewport camera, read editor log |
-| **sequencer** | 8 | Create sequences, add tracks/bindings, set playback range |
-| **animation** | 6 | Animation blueprints, montages, modifiers, skeletal mesh |
-| **niagara** | 8 | Spawn particle systems, set parameters (float/vector/color/bool) |
+| **sequencer** | 9 | Create sequences, add tracks/bindings/keyframes, set playback range |
+| **animation** | 11 | Animation blueprints, montage authoring/read-back, modifiers, skeletal mesh |
+| **niagara** | 11 | Spawn/create/inspect particle systems, set parameters (float/vector/color/bool) |
 | **editor-utils** | 8 | Undo/redo, LOD generation, collision, lightmap UVs, utility widgets |
 | **testing** | 8 | Automation tests, map check, data validation, Gauntlet |
 | **profiling** | 5 | CSV profiling, Unreal Insights traces, stat commands |
