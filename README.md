@@ -1,4 +1,5 @@
-# unreal-mcp
+# Unreal-MCP-Python
+Original by sam-david
 
 The most comprehensive MCP server for Unreal Engine — **127 tools** across **16 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
