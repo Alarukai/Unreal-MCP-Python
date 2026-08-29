@@ -251,3 +251,85 @@ review-checklist items on every PR.
   material thumbnails (`FWidgetRenderer`/`FThumbnailRenderer`/canvas — C++-only).
 - Blueprint debugging: compile-error introspection, breakpoints, watches
   (`FKismetDebugUtilities`).
+
+---
+
+## Part D — Tier 1.5: further gaps (2026-08-29)
+
+Second capability pass, after Tier 1 (PR1-5) shipped. Two sources, cross-checked
+against each other:
+
+1. Three parallel research passes over live UE5 Python API docs (Geometry
+   Script/Landscape/Foliage; DataTable/Levels/Lighting/Enhanced Input; Control
+   Rig/Chaos/PCG/SoundCue/Groom/compile-diagnostics).
+2. A direct read of the IntegrationKit (IK) reference plugin's C++ source
+   (21 tool-class headers, ~1970 lines) — the same reference this project was
+   originally benchmarked against. IK is a **full C++ plugin**, so "IK implements
+   X in C++" is not by itself evidence that X is Python-feasible; where IK's own
+   code *refuses* to do something in C++ and tells the caller to fall back to
+   `execute_python`, or where it required custom, non-trivial C++ (PIE runtime
+   control), that is instead a signal the capability is genuinely hard or Tier 2.
+
+### D1. New Tier 1 domains (Python-feasible, high confidence)
+
+| Domain | Tools | Evidence |
+|---|---|---|
+| **Behavior Tree + Blackboard** | `create_behavior_tree`, `read_behavior_tree` (readOnlyHint), `create_blackboard`, `edit_blackboard` (add/remove keys) | IK implements all four in ~15 lines each via `AssetTools.CreateAsset(UBehaviorTree::StaticClass())`, `NewObject<UBlackboardData>`, `BlackboardKeyType_*` — all ordinary UObject/factory patterns with direct `unreal.*` Python equivalents (`unreal.BehaviorTree`, `unreal.BlackboardData`, `unreal.BlackboardKeyType_Bool/Int/Float/String/Vector/...`). **Caveat**: full node-graph wiring (Composite/Task/Decorator/Service, actually connecting them) is NOT included — IK's own `AddBehaviorTreeNodes` only validates node-type strings and marks the package dirty, then says outright: *"Full graph wiring needs execute_python (BehaviorTreeEditor module is internal)."* Ship create/read/blackboard-CRUD as Tier 1; treat node-graph wiring as out of scope (same class of problem as Blueprint graph editing). |
+| **DataTable / UserDefinedStruct / UserDefinedEnum** | `create_data_table`, `add_data_table_row`, `read_data_table`, `import_data_table_json`, `create_struct`, `create_enum` | Confirmed by both IK (`IKDataTools`) and live docs (`unreal.DataTableFunctionLibrary.fill_data_table_from_json_string/file`, `.get_table_as_json`, `.get_row_names`/`get_column_names`). No confirmed single-row-add primitive in stock Python — implement `add_data_table_row` as a get-JSON → mutate → refill-JSON composite, documented as such. |
+| **Enhanced Input** | `create_input_action`, `create_input_mapping_context`, `find_input_actions`, `delete_input_action`, `edit_mapping_context` | Confirmed by both IK (`IKInputTools`) and docs (`unreal.InputAction_Factory`, `unreal.InputMappingContext.map_key/unmap_key/unmap_action`). |
+| **Level management** | `new_level`, `open_level`, `save_level`, `get_level_info` | Confirmed by both IK (`IKLevelTools`) and docs (`unreal.LevelEditorSubsystem.load_level/save_current_level/save_all_dirty_levels`, replacing the deprecated `EditorLevelLibrary` equivalents). |
+| **Level macros / shortcuts** | `create_basic_level`, `create_light_rig`, `create_grid_layout`, `create_ring_layout` | IK ships these as pure compositions of actor-spawn calls we already have (`spawn_actor`, lighting tools) — no new API surface, just convenience presets. Low risk, easy win. |
+| **Landscape (partial)** | `set_landscape_material`, `get_landscape_info` | IK implements both in ~10 lines via `TActorIterator<ALandscapeProxy>` + direct property read/write — trivially portable to `unreal.EditorActorSubsystem.get_all_level_actors()` + `isinstance(a, unreal.LandscapeProxy)`. **`create_landscape` is explicitly NOT included** — see D2. |
+| **Foliage** | `add_foliage_type`, `paint_foliage` (add instances), `erase_foliage` (remove instances), `get_foliage_stats` | Confirmed by IK (`AInstancedFoliageActor::AddFoliageType`, `NewObject<UFoliageType_InstancedStaticMesh>`) and docs (`unreal.InstancedFoliageActor.add_instances`, confirmed real call-site syntax found in an Epic forum bug report). Procedural/rule-based scatter (slope/density-constrained auto-placement) is out of scope — compose `paint_foliage` from generated transforms instead. |
+| **PCG (Procedural Content Generation) graph** | `create_pcg_graph`, `find_pcg_graphs`, `spawn_pcg_volume`, `generate_pcg`, `add_pcg_node` | Confirmed by IK, which dynamically loads `/Script/PCGEditor.PCGGraphFactory` + `/Script/PCG.PCGGraph`, and by docs (`unreal.PCGGraph` node/edge creation, cited in an Epic forum thread titled "Create PCG Graph with Python"). Node *removal* in some contexts is flagged as possibly restricted — verify in-editor before shipping `remove_pcg_node`. |
+| **GAS (Gameplay Ability System)** | `create_gameplay_ability`, `create_gameplay_effect`, `create_attribute_set`, `list_gameplay_abilities`, `list_gameplay_effects`, `list_attribute_sets`, `get_gas_info` | Not independently verified via web research, but IK's implementation is short (~330 lines total for the whole file) and — per the class name pattern (`GameplayAbility`/`GameplayEffect`/`AttributeSet` are ordinary `UBlueprint`-derived or `UObject`-derived classes) — is almost certainly the same `AssetTools.CreateAsset()` + parent-class pattern already used everywhere in our own `blueprint.ts`/`create_blueprint`. Low risk; verify the exact base classes (`UGameplayAbility`, `UGameplayEffect`, `UAttributeSet`) resolve via `getattr(unreal, ...)` before shipping. |
+| **Game Framework presets** | `create_game_mode`, `create_player_controller`, `create_game_state`, `create_player_state`, `create_hud`, `get_game_framework_info` | Same reasoning as GAS — thin `create_blueprint`-style wrappers with fixed parent classes (`GameModeBase`, `PlayerController`, `GameStateBase`, `PlayerState`, `HUD`). Arguably redundant with the existing generic `create_blueprint` tool (just pass the parent class), but named presets are a real ergonomics win for LLM callers who don't know the exact class names. |
+| **World / project settings** | `get_world_settings`, `set_world_settings`, `set_game_mode` (on world), `get_project_settings`, `set_project_settings` | Tier 1 via reflection: `unreal.EditorActorSubsystem.get_all_level_actors()` filtered to `unreal.WorldSettings` for world settings; `unreal.get_default_object(unreal.GameMapsSettings)` (or the relevant `Engine.ini`-backed config class) for project settings — the same `get_editor_property`/`set_editor_property` pattern used throughout this codebase. |
+| **Replication** | `get_replication_info`, `set_replication_settings`, `set_net_dormancy` | Tier 1 via reflection on `bReplicates`/`NetDormancy`/replication-related actor properties — same `set_editor_property` pattern, no new API class. |
+| **Undo / Redo (actual trigger)** | `undo`, `redo` | We already have `get_undo_history` (read-only). Adding the actual trigger is trivial via `execute_console_command`-style `unreal.SystemLibrary.execute_console_command(world, 'TRANSACTION UNDO')` (or the editor's `Undo`/`Redo` console commands) — reuses the existing console-command transport, no new API. |
+| **World Partition region loading** | `load_world_partition_region` | We already cover data layers + streaming sources; explicit region load/unload via the `WorldPartitionSubsystem` is a small, contained addition to the existing `world-partition` module. |
+| **Material read-back gaps** | `list_material_slots`, `find_textures`, `delete_material`, `delete_material_instance`, `update_material_instance` (batch scalar/vector/texture update in one call) | IK's `IKMaterialTools` has these; they're all thin wrappers over patterns our `material.ts` already uses (`MaterialEditingLibrary`, `EditorAssetLibrary.delete_asset`, asset-registry search). Small, low-risk additions to an existing module rather than a new one. |
+
+### D2. Confirmed Tier 2 additions (needs the C++ plugin — new evidence)
+
+| Domain | Why | Evidence |
+|---|---|---|
+| **PIE (Play-In-Editor) runtime control** — `pie_teleport_actor`, `pie_spawn_actor`, `pie_destroy_actor`, `pie_get/set_property`, `pie_get/set_blackboard_key`, `pie_move_ai_to`, `pie_stop_ai`, `pie_get_game_state`, `pie_list_actors`, `pie_console_command`, plus `play_in_editor`/`stop_pie` themselves | IK wrote ~625 lines of dedicated C++ (`IKPIETools.cpp`) to reach `GEditor->PlayWorld` and manipulate live actors during Play. Everything this server currently does operates on the **editor** world; PIE's live game world is not reliably reachable from stock Python the way the editor world is. This is a big, genuinely valuable capability (teleport/spawn/blackboard-poke/console-command *while the game is running*, for interactive testing) but the size of IK's dedicated implementation is itself evidence it needed C++, not just convenience. **Highest-value Tier 2 addition** — bigger than the existing T2.1-T2.4 items in practical impact for anyone iterating on gameplay. |
+| **`create_landscape`** (landscape creation from scratch) | IK's own C++ implementation refuses to do this and returns: *"Landscape creation requires heightmap+component setup not safely exposable via JSON. Use execute_python with ALandscape::Import or LandscapeEditorUtils for proper creation."* Even with full C++ access, IK didn't consider it safe/reliable enough to wire up. Do not build a dedicated tool for this — at most, document an `execute_python` recipe with a heavy caveat. |
+| **Blueprint interface / event-dispatcher / reparent editing** — `add_interface`, `remove_interface`, `create_event_dispatcher`, `reparent_blueprint` | These need `FBlueprintEditorUtils` (UnrealEd-only, same C++-only tier as the rest of Blueprint graph editing already in T2.1). IK implements them as part of its Blueprint graph C++ layer, not via Python. |
+| **Blueprint Error Fixer** — `bp_fix_broken_references`, `bp_fix_deprecated_nodes`, `bp_refresh_all_nodes`, `bp_find_unconnected_pins` | Same `UEdGraphNode`/`FBlueprintEditorUtils` dependency as T2.1/T2.4. Add to the existing T2.4 (Blueprint debugging) bucket — it's the same C++ surface. |
+| **Asset thumbnail rendering** — `get_asset_thumbnail` | `FThumbnailRenderer`, same C++-only render-to-PNG tier as T2.2. |
+| **AnimBP state machine node editing** — `add_anim_bp_state_machine` | `UAnimStateMachineGraph` is `UEdGraph`-based, same restriction as regular Blueprint graphs (T2.1). |
+| **IK Rig / IK Retargeter / Pose Search (Motion Matching)** | IK gates this entire tool set behind `NWIRO_HAS_IK_TOOLS` (UE 5.7+ only) and implements it in C++. Niche and engine-version-gated; low priority even for Tier 2 — revisit only if a user specifically needs retargeting/motion-matching automation. |
+| **Control Rig graph editing** | Research (independent of IK) found `unreal.ControlRigBlueprint` + its `Controller` object (`add_unit_node`, `add_comment_node`, pin-linking) is a real, documented Python graph-editing API — **this one may actually be Tier 1**, unlike the rest of this table. Flagged here for visibility but needs a hands-on engine check before committing either way; if confirmed, move to D1. |
+| **Chaos Cloth asset authoring** (not component config) | No confirmed Python path for pattern-based cloth authoring (sewing, weight painting) — that's the dedicated ChaosClothAsset editor tool. Geometry Collection (destruction) *configuration* is Tier 1-feasible via `unreal.GeometryCollection`; fracture *generation* itself is unconfirmed either way. |
+| **Sound Cue graph editing** | Architecturally different from Blueprint graphs (runtime `UObject` node network, not `UEdGraph`) — `unreal.SoundCue.first_node`/`unreal.SoundNode.child_nodes` are documented Python properties. Genuinely uncertain whether *writing* `first_node` and wiring `SoundNodeWavePlayer` nodes works — no evidence of a hard block was found, but no confirmed write example either. Worth a 5-minute empirical test rather than assuming Tier 2; tentatively listed here pending that check. |
+
+### D3. Not investigated further (out of scope / low value)
+- **Groom/hair authoring** (raw strand import) — binding an existing groom asset
+  to a skeletal mesh is Tier 1 (`unreal.GroomComponent`/`GroomBindingAsset`), but
+  this project has no existing hair/groom domain to extend and it's a narrow use
+  case; not worth a dedicated module unless requested.
+- **Geometry Script** (`unreal.GeometryScript_*` — primitives, boolean ops, UVs,
+  static-mesh baking) — confirmed broadly Tier 1 and genuinely high-value
+  (Epic's flagship Python-scriptable UE5 mesh system), but it's a large,
+  self-contained new module (procedural mesh authoring) rather than a small gap
+  in an existing one, and IK does not implement it at all (no cross-reference
+  signal either way). Recommend treating as its own future roadmap item if
+  procedural mesh generation becomes a priority, rather than folding it into
+  this gap list.
+- **Lighting build** (`unreal.LevelEditorSubsystem.build_light_maps`) — clean,
+  single-call, high-confidence Tier 1 win, but IK does not implement it either
+  (no `build_lighting`-equivalent found in its tool list), so it's noted here
+  rather than promoted to D1's cross-referenced table. Still a good small
+  addition to `build.ts` or `environment.ts` if picked up later.
+
+### D4. What this changes about the plugin's value proposition
+IK's own code — written with full C++ access and no Python constraint — still
+explicitly punts `create_landscape` to `execute_python`, and still needed ~625
+lines of dedicated C++ for PIE runtime control specifically (not for graph
+editing, which was the assumed Tier 2 headline). That reframes the Tier 2
+plugin's strongest case: **PIE runtime control**, not just Blueprint graph
+editing, is the other capability worth a C++ plugin — live-game-world
+manipulation has no Python equivalent at all today, whereas Blueprint graphs at
+least have partial Python read-back via the existing `get_blueprint_info`.

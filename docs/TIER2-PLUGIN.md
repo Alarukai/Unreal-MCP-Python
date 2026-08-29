@@ -104,12 +104,75 @@ for the text log.
   TCP command protocol above, loopback-only, no browser, no download pipeline,
   no filesystem writes outside explicitly sandboxed paths.
 
+### T2.5 PIE (Play-In-Editor) runtime control — *new, see ROADMAP.md Part D2*
+Confirmed via a direct read of the IntegrationKit reference plugin's C++: it
+dedicates ~625 lines (`IKPIETools.cpp`) to reaching `GEditor->PlayWorld` and
+manipulating the *live* game world while Play is running — something this
+server currently cannot do at all (every existing tool operates on the editor
+world). The size of that dedicated implementation is itself evidence this
+needs C++, not a Python workaround.
+
+- `play_in_editor` / `stop_pie` — start/stop Play.
+- `pie_spawn_actor` / `pie_destroy_actor` / `pie_teleport_actor` — live actor
+  lifecycle and transform control during Play.
+- `pie_get_property` / `pie_set_property` — reflection-based get/set on a live
+  PIE actor (mirrors `get_actor_properties`/`set_actor_property`, but against
+  `PlayWorld` instead of the editor world).
+- `pie_set_blackboard_key` / `pie_get_blackboard_key` — poke/read an AI
+  controller's live Blackboard values.
+- `pie_move_ai_to` / `pie_stop_ai` — direct AI controller commands during Play.
+- `pie_get_game_state` / `pie_list_actors` — live world snapshot (actor
+  positions, counts) for test/debug loops.
+- `pie_console_command` — console commands scoped to the PIE world.
+
+This is arguably **higher practical value** than T2.1 (Blueprint graph
+editing) for anyone iterating on gameplay — it closes the "does this actually
+work when played" loop, which nothing in Tier 1 can reach.
+
+### T2.6 Blueprint interface / event-dispatcher / reparent editing
+Same `FBlueprintEditorUtils` / `UEdGraph` dependency as T2.1, confirmed
+present in the IntegrationKit reference as a distinct set of operations:
+- `add_interface` / `remove_interface` — implement/remove a Blueprint
+  interface.
+- `create_event_dispatcher` — add a multicast delegate the Blueprint can bind
+  to/broadcast.
+- `reparent_blueprint` — change a Blueprint's parent class post-creation.
+
+### T2.7 Blueprint Error Fixer
+Extends T2.4's diagnostic surface — same C++-only dependency:
+- `bp_fix_broken_references` — repair dangling references after an asset
+  rename/move outside the editor's own refactor tools.
+- `bp_fix_deprecated_nodes` — replace deprecated K2 nodes with their current
+  equivalents.
+- `bp_refresh_all_nodes` — force a full node refresh (post-reparent, post
+  native-class-change).
+- `bp_find_unconnected_pins` — surface dangling/unwired pins as a diagnostic
+  list.
+
+### T2.8 Misc confirmed-Tier-2 items (lower priority)
+- **`get_asset_thumbnail`** — same `FThumbnailRenderer` dependency as T2.2's
+  material thumbnails; fold into that work item.
+- **AnimBP state machine node editing** (`add_anim_bp_state_machine`) —
+  `UAnimStateMachineGraph` is `UEdGraph`-based, same restriction as T2.1.
+- **IK Rig / IK Retargeter / Pose Search (Motion Matching)** — niche,
+  engine-version-gated (UE 5.7+ only in the reference plugin). Revisit only on
+  specific user demand.
+- **`create_landscape`** — explicitly *not* recommended even as a Tier 2 item:
+  the reference plugin's own C++ implementation refuses to attempt this and
+  tells the caller to use `execute_python` with `ALandscape::Import` instead,
+  meaning full C++ access didn't make it safe/reliable enough to wire up. Do
+  not build a dedicated tool for this on either tier.
+
 ## Effort / sequencing
 1. Plugin skeleton + capability negotiation + one round-trip command
    (`list_nodes`) to validate the transport end-to-end.
 2. Graph editing (T2.1) — the core value.
 3. Render (T2.2) + auto-layout (T2.3).
-4. Debugging (T2.4).
+4. Debugging (T2.4) + Blueprint Error Fixer (T2.7, same surface).
+5. PIE runtime control (T2.5) — self-contained, does not depend on 2-4;
+   could be built first if gameplay-testing feedback loops are the priority.
+6. Interface/dispatcher/reparent editing (T2.6) — extends T2.1.
+7. Misc (T2.8) — pick up opportunistically.
 
 Ship as an **optional** plugin: the server must keep working (Python path)
 when it is absent, exactly as it does today.
