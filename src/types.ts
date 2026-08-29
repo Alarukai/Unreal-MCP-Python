@@ -93,6 +93,8 @@ export const ALL_MODULES = [
 	"audio",
 	"navigation",
 	"widget",
+	"datatable",
+	"input",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];

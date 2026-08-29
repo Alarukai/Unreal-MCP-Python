@@ -799,4 +799,60 @@ else:
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
+
+	server.tool(
+		"set_material_property",
+		"Set a top-level property on a master Material (not an expression node) — e.g. BlendMode, ShadingModel, TwoSided, DitheredLODTransition.",
+		{
+			material_path: z.string().describe("Material asset path"),
+			property_name: z
+				.string()
+				.describe("Property name, e.g. BlendMode, ShadingModel, TwoSided, bUsedWithSkeletalMesh"),
+			property_value: z
+				.string()
+				.describe(
+					"Property value — enum names (BLEND_Translucent, MSM_Unlit), True/False for bools, or plain strings",
+				),
+		},
+		async ({ material_path, property_name, property_value }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+mat = unreal.EditorAssetLibrary.load_asset('{{material_path}}')
+if not mat or not isinstance(mat, unreal.Material):
+    print(json.dumps({"error": "Material not found: {{material_path}}"}))
+else:
+    prop_name = '{{property_name}}'
+    raw_value = '{{property_value}}'
+
+    value = raw_value
+    if raw_value in ('True', 'False'):
+        value = raw_value == 'True'
+    else:
+        blend_enum = getattr(unreal.BlendMode, raw_value, None)
+        shading_enum = getattr(unreal.MaterialShadingModel, raw_value, None)
+        if blend_enum is not None:
+            value = blend_enum
+        elif shading_enum is not None:
+            value = shading_enum
+        else:
+            try:
+                value = float(raw_value) if '.' in raw_value else int(raw_value)
+            except ValueError:
+                value = raw_value
+
+    try:
+        mat.set_editor_property(prop_name, value)
+        unreal.MaterialEditingLibrary.recompile_material(mat)
+        unreal.EditorAssetLibrary.save_asset('{{material_path}}')
+        print(json.dumps({"success": True, "property": prop_name}))
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))`,
+				{ material_path, property_name, property_value },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
 }

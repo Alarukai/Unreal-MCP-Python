@@ -8,8 +8,10 @@ import { registerAudioTools } from "./audio.js";
 import { registerBlueprintTools } from "./blueprint.js";
 import { registerBuildTools } from "./build.js";
 import { registerConsoleTools } from "./console.js";
+import { registerDataTableTools } from "./datatable.js";
 import { registerEditorUtilsTools } from "./editor-utils.js";
 import { registerEnvironmentTools } from "./environment.js";
+import { registerInputTools } from "./input.js";
 import { registerMaterialTools } from "./material.js";
 import { registerNavigationTools } from "./navigation.js";
 import { registerNiagaraTools } from "./niagara.js";
@@ -47,6 +49,8 @@ const MODULE_REGISTRARS: Record<
 	"remote-control-presets": registerRemoteControlPresetsTools,
 	plugin: registerPluginTools,
 	widget: registerWidgetTools,
+	datatable: registerDataTableTools,
+	input: registerInputTools,
 };
 
 /**

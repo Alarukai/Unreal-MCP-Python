@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **169 tools** across **20 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **182 tools** across **22 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -73,11 +73,11 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 
 | Module | Tools | Description |
 |--------|-------|-------------|
-| **actor** | 10 | Spawn, delete, transform, select, duplicate, tag actors |
+| **actor** | 13 | Spawn, delete, transform, select, duplicate, tag, attach/detach, rename actors |
 | **asset** | 16 | List, search, import, export, rename, delete, validate assets |
 | **blueprint** | 12 | Create blueprints, add components/variables/functions, graph nodes |
 | **build** | 9 | Build targets, cook content, package, generate project files |
-| **material** | 17 | Create materials/instances, add expressions, wire graphs, typed material function editing |
+| **material** | 18 | Create materials/instances, add expressions, wire graphs, typed material function editing |
 | **console** | 7 | Execute Python, console commands, screenshots, viewport camera, read editor log |
 | **sequencer** | 9 | Create sequences, add tracks/bindings/keyframes, set playback range |
 | **animation** | 11 | Animation blueprints, montage authoring/read-back, modifiers, skeletal mesh |
@@ -93,6 +93,8 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **audio** | 3 | Spawn ambient sounds, set volume/pitch/auto-activate, sound asset metadata |
 | **navigation** | 3 | Build NavMesh, synchronous pathfinding queries, NavMeshBoundsVolume info |
 | **widget** | 4 | Create UMG Widget Blueprints, read/mutate the widget tree, set widget/slot properties |
+| **datatable** | 4 | Create DataTables, read/add rows, bulk JSON import |
+| **input** | 5 | Enhanced Input: InputAction/InputMappingContext creation, key mapping edit |
 
 ## Architecture
 

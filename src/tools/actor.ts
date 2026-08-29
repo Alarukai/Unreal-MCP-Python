@@ -383,4 +383,108 @@ else:
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
+
+	server.tool(
+		"attach_actor_to_actor",
+		"Attach an actor to a parent actor (component-level attachment via AActor.attach_to_actor).",
+		{
+			actor: z.string().describe("Actor name or label to attach"),
+			parent: z.string().describe("Parent actor name or label"),
+			socket_name: z
+				.string()
+				.optional()
+				.describe("Socket on the parent's root component to attach to"),
+			keep_world_transform: z
+				.boolean()
+				.default(false)
+				.describe("Keep world transform on attach (default: snap to parent-relative)"),
+		},
+		async ({ actor, parent, socket_name, keep_world_transform }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+child = None
+parent_actor = None
+for a in actors:
+    if a.get_name() == '{{actor}}' or a.get_actor_label() == '{{actor}}':
+        child = a
+    if a.get_name() == '{{parent}}' or a.get_actor_label() == '{{parent}}':
+        parent_actor = a
+if not child or not parent_actor:
+    print(json.dumps({"error": "Could not find both actors", "actor_found": child is not None, "parent_found": parent_actor is not None}))
+else:
+    rule = unreal.AttachmentRule.KEEP_WORLD if {{keep_world_transform}} else unreal.AttachmentRule.SNAP_TO_TARGET
+    socket = '{{socket_name}}'
+    child.attach_to_actor(parent_actor, unreal.Name(socket) if socket else unreal.Name(''), rule, rule, rule, False)
+    print(json.dumps({"success": True, "actor": child.get_name(), "parent": parent_actor.get_name()}))`,
+				{
+					actor,
+					parent,
+					socket_name: socket_name || "",
+					keep_world_transform: keep_world_transform ? "True" : "False",
+				},
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"detach_actor",
+		"Detach an actor from its current parent, keeping its world transform.",
+		{ actor: z.string().describe("Actor name or label to detach") },
+		async ({ actor }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+target = None
+for a in actors:
+    if a.get_name() == '{{actor}}' or a.get_actor_label() == '{{actor}}':
+        target = a
+        break
+if not target:
+    print(json.dumps({"error": "Actor not found: {{actor}}"}))
+else:
+    target.detach_from_actor(unreal.DetachmentRule.KEEP_WORLD, unreal.DetachmentRule.KEEP_WORLD, unreal.DetachmentRule.KEEP_WORLD)
+    print(json.dumps({"success": True, "actor": target.get_name()}))`,
+				{ actor },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"rename_actor",
+		"Rename an actor's editor label (the name shown in the World Outliner). Does not change the internal object name.",
+		{
+			actor: z.string().describe("Actor name or label to rename"),
+			new_label: z.string().describe("New actor label"),
+		},
+		async ({ actor, new_label }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+target = None
+for a in actors:
+    if a.get_name() == '{{actor}}' or a.get_actor_label() == '{{actor}}':
+        target = a
+        break
+if not target:
+    print(json.dumps({"error": "Actor not found: {{actor}}"}))
+else:
+    target.set_actor_label('{{new_label}}')
+    print(json.dumps({"success": True, "actor": target.get_name(), "label": target.get_actor_label()}))`,
+				{ actor, new_label },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
 }
