@@ -99,6 +99,8 @@ export const ALL_MODULES = [
 	"level",
 	"gameplay",
 	"world",
+	"foliage",
+	"pcg",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];

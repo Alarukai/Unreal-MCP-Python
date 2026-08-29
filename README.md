@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **217 tools** across **26 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **226 tools** across **28 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -8,7 +8,7 @@ The most comprehensive MCP server for Unreal Engine — **217 tools** across **2
 
 | | unreal-mcp | [flopperam](https://github.com/flopperam/unreal-engine-mcp) | [chongdashu](https://github.com/chongdashu/unreal-mcp) | [kvick-games](https://github.com/kvick-games/UnrealMCP) | [ChiR24](https://github.com/ChiR24/Unreal_mcp) |
 |---|---|---|---|---|---|
-| Tools | **217** | ~30 | ~20 | ~5 | 36 |
+| Tools | **226** | ~30 | ~20 | ~5 | 36 |
 | Transports | **4** | 1 | 1 | 1 | 1 |
 | Requires C++ plugin | **No** | Yes | Yes | Yes | Yes |
 | Build/package tools | **Yes** | No | No | No | Partial |
@@ -99,6 +99,8 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **level** | 8 | New/open/save level, level info, starter-level/light-rig/grid/ring macros |
 | **gameplay** | 13 | GAS (ability/effect/attribute set) + game-framework Blueprint presets |
 | **world** | 7 | World settings, actor replication/net dormancy, landscape material/info |
+| **foliage** | 4 | Register foliage types, scatter/erase instances, foliage stats |
+| **pcg** | 5 | Create/find PCG graphs, spawn PCG volumes, generate, add graph nodes |
 
 ## Architecture
 
@@ -164,7 +166,7 @@ Place `.unrealmcp.json` in your project directory or home directory:
 ```
 
 **Least privilege:** only enable the modules you actually use. The default (no
-`enabledModules` set) turns on all 26 modules, including ones with real destructive/system
+`enabledModules` set) turns on all 28 modules, including ones with real destructive/system
 reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s plugin list,
 `source-control` checks in/reverts files). A tighter example for day-to-day level/content work:
 

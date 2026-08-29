@@ -12,12 +12,14 @@ import { registerConsoleTools } from "./console.js";
 import { registerDataTableTools } from "./datatable.js";
 import { registerEditorUtilsTools } from "./editor-utils.js";
 import { registerEnvironmentTools } from "./environment.js";
+import { registerFoliageTools } from "./foliage.js";
 import { registerGameplayTools } from "./gameplay.js";
 import { registerInputTools } from "./input.js";
 import { registerLevelTools } from "./level.js";
 import { registerMaterialTools } from "./material.js";
 import { registerNavigationTools } from "./navigation.js";
 import { registerNiagaraTools } from "./niagara.js";
+import { registerPcgTools } from "./pcg.js";
 import { registerPluginTools } from "./plugin.js";
 import { registerProfilingTools } from "./profiling.js";
 import { registerRemoteControlPresetsTools } from "./remote-control-presets.js";
@@ -59,6 +61,8 @@ const MODULE_REGISTRARS: Record<
 	level: registerLevelTools,
 	gameplay: registerGameplayTools,
 	world: registerWorldTools,
+	foliage: registerFoliageTools,
+	pcg: registerPcgTools,
 };
 
 /**
