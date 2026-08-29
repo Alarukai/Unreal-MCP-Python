@@ -12,6 +12,7 @@ import { registerConsoleTools } from "./console.js";
 import { registerDataTableTools } from "./datatable.js";
 import { registerEditorUtilsTools } from "./editor-utils.js";
 import { registerEnvironmentTools } from "./environment.js";
+import { registerGameplayTools } from "./gameplay.js";
 import { registerInputTools } from "./input.js";
 import { registerLevelTools } from "./level.js";
 import { registerMaterialTools } from "./material.js";
@@ -55,6 +56,7 @@ const MODULE_REGISTRARS: Record<
 	datatable: registerDataTableTools,
 	input: registerInputTools,
 	level: registerLevelTools,
+	gameplay: registerGameplayTools,
 };
 
 /**
