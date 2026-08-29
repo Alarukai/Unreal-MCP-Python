@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **226 tools** across **28 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **234 tools** across **28 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -8,7 +8,7 @@ The most comprehensive MCP server for Unreal Engine — **226 tools** across **2
 
 | | unreal-mcp | [flopperam](https://github.com/flopperam/unreal-engine-mcp) | [chongdashu](https://github.com/chongdashu/unreal-mcp) | [kvick-games](https://github.com/kvick-games/UnrealMCP) | [ChiR24](https://github.com/ChiR24/Unreal_mcp) |
 |---|---|---|---|---|---|
-| Tools | **226** | ~30 | ~20 | ~5 | 36 |
+| Tools | **234** | ~30 | ~20 | ~5 | 36 |
 | Transports | **4** | 1 | 1 | 1 | 1 |
 | Requires C++ plugin | **No** | Yes | Yes | Yes | Yes |
 | Build/package tools | **Yes** | No | No | No | Partial |
@@ -76,8 +76,8 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **actor** | 13 | Spawn, delete, transform, select, duplicate, tag, attach/detach, rename actors |
 | **asset** | 16 | List, search, import, export, rename, delete, validate assets |
 | **blueprint** | 12 | Create blueprints, add components/variables/functions, graph nodes |
-| **build** | 9 | Build targets, cook content, package, generate project files |
-| **material** | 18 | Create materials/instances, add expressions, wire graphs, typed material function editing |
+| **build** | 12 | Build targets, cook content, package, generate project files, project/build/map-check info |
+| **material** | 23 | Create materials/instances, add expressions, wire graphs, typed material function editing, slots/textures/batch instance updates |
 | **console** | 7 | Execute Python, console commands, screenshots, viewport camera, read editor log |
 | **sequencer** | 9 | Create sequences, add tracks/bindings/keyframes, set playback range |
 | **animation** | 11 | Animation blueprints, montage authoring/read-back, modifiers, skeletal mesh |

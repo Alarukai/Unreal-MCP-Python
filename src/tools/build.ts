@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ConnectionManager } from "../transports/connection-manager.js";
 import type { UnrealMcpConfig } from "../types.js";
+import { inlineScript } from "../utils/template.js";
 
 export function registerBuildTools(
 	server: McpServer,
@@ -255,6 +256,97 @@ export function registerBuildTools(
 			return {
 				content: [{ type: "text", text: JSON.stringify(parsed, null, 2) }],
 			};
+		},
+	);
+
+	server.tool(
+		"get_project_info",
+		"Get basic project info: project name, engine version, project and content directory paths.",
+		{},
+		{ readOnlyHint: true },
+		async () => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+result = {
+    "success": True,
+    "engine_version": unreal.SystemLibrary.get_engine_version(),
+    "project_dir": unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()),
+    "content_dir": unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_content_dir()),
+}
+try:
+    project_file = unreal.Paths.get_project_file_path()
+    result["project_name"] = unreal.Paths.get_base_filename(project_file)
+except Exception:
+    result["project_name"] = None
+print(json.dumps(result, indent=2))`,
+				{},
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"get_build_configuration",
+		"Report the platform/configuration this MCP server session is targeting (as configured via CLI args/env/config file — not introspected from the running editor's own compile flags, which aren't exposed to Python).",
+		{},
+		{ readOnlyHint: true },
+		async () => {
+			return {
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify(
+							{
+								success: true,
+								platform: config.platform,
+								configuration: config.configuration,
+							},
+							null,
+							2,
+						),
+					},
+				],
+			};
+		},
+	);
+
+	server.tool(
+		"get_map_check_errors",
+		"Run the editor's Map Check validation and return recently-logged Map Check output lines. This scrapes free-text log output (via the 'MAP CHECK' console command + read_log-style capture), not a structured issue list — treat it as a diagnostic hint, not a queryable error object.",
+		{},
+		{ readOnlyHint: true },
+		async () => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+import os
+
+world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+unreal.SystemLibrary.execute_console_command(world, 'MAP CHECK')
+
+log_dir = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_log_dir())
+try:
+    candidates = [f for f in os.listdir(log_dir) if f.endswith('.log') and '-backup-' not in f]
+except Exception:
+    candidates = []
+if not candidates:
+    print(json.dumps({"error": "No log file found in " + log_dir}))
+else:
+    candidates.sort(key=lambda f: os.path.getmtime(os.path.join(log_dir, f)), reverse=True)
+    log_path = os.path.join(log_dir, candidates[0])
+    with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+        all_lines = f.readlines()
+    filtered = [line.rstrip('\\n') for line in all_lines if 'MapCheck' in line or 'Map Check' in line]
+    tail = filtered[-100:]
+    print(json.dumps({"success": True, "log_file": log_path, "lines": tail, "note": "Free-text log lines matching MapCheck/Map Check, most recent 100. Empty means no issues were logged (or the check produced no textual output on this engine version)."}, indent=2))`,
+				{},
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
 		},
 	);
 }

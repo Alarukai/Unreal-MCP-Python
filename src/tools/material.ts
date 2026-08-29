@@ -855,4 +855,194 @@ else:
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
+
+	server.tool(
+		"list_material_slots",
+		"List material slots on an actor's mesh components: slot index and the currently-assigned material.",
+		{ actor: z.string().describe("Actor name or label") },
+		{ readOnlyHint: true },
+		async ({ actor }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+target = None
+for a in actors:
+    if a.get_name() == '{{actor}}' or a.get_actor_label() == '{{actor}}':
+        target = a
+        break
+if not target:
+    print(json.dumps({"error": "Actor not found: {{actor}}"}))
+else:
+    comps = target.get_components_by_class(unreal.MeshComponent)
+    result = []
+    for comp in comps:
+        num_slots = comp.get_num_materials()
+        slots = []
+        for i in range(num_slots):
+            mat = comp.get_material(i)
+            slots.append({"slot": i, "material": mat.get_path_name() if mat else None})
+        result.append({"component": comp.get_name(), "slots": slots})
+    print(json.dumps({"success": True, "components": result}, indent=2))`,
+				{ actor },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"find_textures",
+		"Search a content directory for Texture2D assets by name substring.",
+		{
+			search_term: z.string().default("").describe("Substring to match in the texture name"),
+			directory: z.string().default("/Game").describe("Content directory path"),
+			max_results: z.number().int().min(1).max(500).default(50),
+		},
+		{ readOnlyHint: true },
+		async ({ search_term, directory, max_results }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+assets = registry.get_assets_by_path('{{directory}}', True) or []
+search_term = '{{search_term}}'.lower()
+results = []
+for a in assets:
+    cls = str(a.asset_class_path.asset_name) if hasattr(a, 'asset_class_path') else str(a.asset_class)
+    if cls != 'Texture2D':
+        continue
+    name = str(a.asset_name)
+    if search_term and search_term not in name.lower():
+        continue
+    results.append({"name": name, "path": str(a.package_name) + '.' + name})
+    if len(results) >= {{max_results}}:
+        break
+print(json.dumps(results, indent=2))`,
+				{ search_term, directory, max_results },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"delete_material",
+		"Delete a master Material asset.",
+		{ material_path: z.string().describe("Material asset path") },
+		{ destructiveHint: true },
+		async ({ material_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+if not unreal.EditorAssetLibrary.does_asset_exist('{{material_path}}'):
+    print(json.dumps({"error": "Material not found: {{material_path}}"}))
+else:
+    success = unreal.EditorAssetLibrary.delete_asset('{{material_path}}')
+    print(json.dumps({"success": success}))`,
+				{ material_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"delete_material_instance",
+		"Delete a Material Instance asset.",
+		{ instance_path: z.string().describe("Material instance asset path") },
+		{ destructiveHint: true },
+		async ({ instance_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+if not unreal.EditorAssetLibrary.does_asset_exist('{{instance_path}}'):
+    print(json.dumps({"error": "Material instance not found: {{instance_path}}"}))
+else:
+    success = unreal.EditorAssetLibrary.delete_asset('{{instance_path}}')
+    print(json.dumps({"success": success}))`,
+				{ instance_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"update_material_instance",
+		"Batch-set scalar, vector, and/or texture parameters on a material instance in one call.",
+		{
+			instance_path: z.string().describe("Material instance asset path"),
+			scalars: z
+				.array(z.object({ name: z.string(), value: z.number() }))
+				.default([])
+				.describe("Scalar parameters to set"),
+			vectors: z
+				.array(
+					z.object({
+						name: z.string(),
+						r: z.number(),
+						g: z.number(),
+						b: z.number(),
+						a: z.number().default(1),
+					}),
+				)
+				.default([])
+				.describe("Vector (color) parameters to set"),
+			textures: z
+				.array(z.object({ name: z.string(), texture_path: z.string() }))
+				.default([])
+				.describe("Texture parameters to set"),
+		},
+		async ({ instance_path, scalars, vectors, textures }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+mel = unreal.MaterialEditingLibrary
+mi = unreal.EditorAssetLibrary.load_asset('{{instance_path}}')
+if not mi or not isinstance(mi, unreal.MaterialInstanceConstant):
+    print(json.dumps({"error": "Material instance not found: {{instance_path}}"}))
+else:
+    applied = []
+    warnings = []
+    for s in json.loads('{{scalars_json}}'):
+        try:
+            mel.set_material_instance_scalar_parameter_value(mi, s['name'], s['value'])
+            applied.append('scalar:' + s['name'])
+        except Exception as e:
+            warnings.append('scalar ' + s['name'] + ': ' + str(e))
+    for v in json.loads('{{vectors_json}}'):
+        try:
+            color = unreal.LinearColor(v['r'], v['g'], v['b'], v['a'])
+            mel.set_material_instance_vector_parameter_value(mi, v['name'], color)
+            applied.append('vector:' + v['name'])
+        except Exception as e:
+            warnings.append('vector ' + v['name'] + ': ' + str(e))
+    for t in json.loads('{{textures_json}}'):
+        texture = unreal.EditorAssetLibrary.load_asset(t['texture_path'])
+        if not texture:
+            warnings.append('texture ' + t['name'] + ': not found at ' + t['texture_path'])
+            continue
+        try:
+            mel.set_material_instance_texture_parameter_value(mi, t['name'], texture)
+            applied.append('texture:' + t['name'])
+        except Exception as e:
+            warnings.append('texture ' + t['name'] + ': ' + str(e))
+    print(json.dumps({"success": True, "applied": applied, "warnings": warnings}))`,
+				{
+					instance_path,
+					scalars_json: JSON.stringify(scalars),
+					vectors_json: JSON.stringify(vectors),
+					textures_json: JSON.stringify(textures),
+				},
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
 }
