@@ -282,6 +282,10 @@ against each other:
 | **Landscape (partial)** | `set_landscape_material`, `get_landscape_info` | IK implements both in ~10 lines via `TActorIterator<ALandscapeProxy>` + direct property read/write — trivially portable to `unreal.EditorActorSubsystem.get_all_level_actors()` + `isinstance(a, unreal.LandscapeProxy)`. **`create_landscape` is explicitly NOT included** — see D2. |
 | **Foliage** | `add_foliage_type`, `paint_foliage` (add instances), `erase_foliage` (remove instances), `get_foliage_stats` | Confirmed by IK (`AInstancedFoliageActor::AddFoliageType`, `NewObject<UFoliageType_InstancedStaticMesh>`) and docs (`unreal.InstancedFoliageActor.add_instances`, confirmed real call-site syntax found in an Epic forum bug report). Procedural/rule-based scatter (slope/density-constrained auto-placement) is out of scope — compose `paint_foliage` from generated transforms instead. |
 | **PCG (Procedural Content Generation) graph** | `create_pcg_graph`, `find_pcg_graphs`, `spawn_pcg_volume`, `generate_pcg`, `add_pcg_node` | Confirmed by IK, which dynamically loads `/Script/PCGEditor.PCGGraphFactory` + `/Script/PCG.PCGGraph`, and by docs (`unreal.PCGGraph` node/edge creation, cited in an Epic forum thread titled "Create PCG Graph with Python"). Node *removal* in some contexts is flagged as possibly restricted — verify in-editor before shipping `remove_pcg_node`. |
+| **State Tree** | `create_state_tree`, `read_state_tree` (readOnlyHint), `add_state_tree_state` | IK ships a dedicated `IKStateTreeTools` (292 lines). Not independently verified against live UE Python docs the way Control Rig was (see D2) — StateTree's Python exposure is less documented than Control Rig's. Treat as Tier 1 candidate pending a quick in-editor check (`dir(unreal.StateTree)`, `unreal.StateTreeEditorData`) rather than assumed. |
+| **Actor attach/detach/rename** | `attach_actor_to_actor`, `detach_actor`, `rename_actor` | Small gap in the existing `actor` module found via an exact tool-name diff against IK's dispatch table — we have `duplicate_actors`/`select_actors`/`set_actor_tags`/`set_actor_transform` but no attach/detach (`AActor::AttachToActor`/`DetachFromActor`, both plain reflection-callable) or a dedicated rename (currently only reachable indirectly via `set_actor_property` on `ActorLabel`). |
+| **Master-material top-level properties** | `set_material_property` | Distinct from our existing expression-level property tools — this is for whole-material properties like `BlendMode`, `ShadingModel`, `TwoSided` (`unreal.Material.get/set_editor_property`, same reflection pattern already used everywhere). Found via the exact tool-name diff; not previously listed. |
+| **Project/build info** | `get_project_info`, `list_project_modules`, `get_map_check_errors`, `get_build_configuration` | Found via the exact tool-name diff against IK's dispatch table. `get_map_check_errors` is the most valuable of these — surfaces the editor's Map Check validation (missing collision, invalid lighting, etc.) via `unreal.EditorLevelLibrary`-adjacent APIs or the Message Log; `get_project_info`/`list_project_modules`/`get_build_configuration` are straightforward `.uproject` JSON + `unreal.SystemLibrary` reads, arguably closer to `config.ts`/subprocess territory than a new Python tool. |
 | **GAS (Gameplay Ability System)** | `create_gameplay_ability`, `create_gameplay_effect`, `create_attribute_set`, `list_gameplay_abilities`, `list_gameplay_effects`, `list_attribute_sets`, `get_gas_info` | Not independently verified via web research, but IK's implementation is short (~330 lines total for the whole file) and — per the class name pattern (`GameplayAbility`/`GameplayEffect`/`AttributeSet` are ordinary `UBlueprint`-derived or `UObject`-derived classes) — is almost certainly the same `AssetTools.CreateAsset()` + parent-class pattern already used everywhere in our own `blueprint.ts`/`create_blueprint`. Low risk; verify the exact base classes (`UGameplayAbility`, `UGameplayEffect`, `UAttributeSet`) resolve via `getattr(unreal, ...)` before shipping. |
 | **Game Framework presets** | `create_game_mode`, `create_player_controller`, `create_game_state`, `create_player_state`, `create_hud`, `get_game_framework_info` | Same reasoning as GAS — thin `create_blueprint`-style wrappers with fixed parent classes (`GameModeBase`, `PlayerController`, `GameStateBase`, `PlayerState`, `HUD`). Arguably redundant with the existing generic `create_blueprint` tool (just pass the parent class), but named presets are a real ergonomics win for LLM callers who don't know the exact class names. |
 | **World / project settings** | `get_world_settings`, `set_world_settings`, `set_game_mode` (on world), `get_project_settings`, `set_project_settings` | Tier 1 via reflection: `unreal.EditorActorSubsystem.get_all_level_actors()` filtered to `unreal.WorldSettings` for world settings; `unreal.get_default_object(unreal.GameMapsSettings)` (or the relevant `Engine.ini`-backed config class) for project settings — the same `get_editor_property`/`set_editor_property` pattern used throughout this codebase. |
@@ -305,7 +309,42 @@ against each other:
 | **Chaos Cloth asset authoring** (not component config) | No confirmed Python path for pattern-based cloth authoring (sewing, weight painting) — that's the dedicated ChaosClothAsset editor tool. Geometry Collection (destruction) *configuration* is Tier 1-feasible via `unreal.GeometryCollection`; fracture *generation* itself is unconfirmed either way. |
 | **Sound Cue graph editing** | Architecturally different from Blueprint graphs (runtime `UObject` node network, not `UEdGraph`) — `unreal.SoundCue.first_node`/`unreal.SoundNode.child_nodes` are documented Python properties. Genuinely uncertain whether *writing* `first_node` and wiring `SoundNodeWavePlayer` nodes works — no evidence of a hard block was found, but no confirmed write example either. Worth a 5-minute empirical test rather than assuming Tier 2; tentatively listed here pending that check. |
 
-### D3. Not investigated further (out of scope / low value)
+### D3. Verified via exact tool-name diff against IK's dispatch table
+A full extraction of every `ToolName == TEXT("...")` string in IK's
+`IKMCPServer.cpp` (225 unique tool names) diffed against our own tool
+inventory. Findings not already covered above:
+
+- **Confirmed NOT a gap** — `get_asset_referencers`: our existing
+  `get_asset_references` already takes a `direction: dependencies|referencers|both`
+  param and covers this in one tool; IK splits it into two. No action needed.
+- **Confirmed NOT a gap** — `find_static_meshes`, `read_asset`, `find_assets`,
+  `transform_actor`, `select_actor`, `duplicate_actor`, `get_actor_property`:
+  all naming variants of tools we already have (`list_assets`/`search_assets`
+  with `class_filter`, `get_asset_info`, `search_assets`, `set_actor_transform`,
+  `select_actors`, `duplicate_actors`, `get_actor_properties`).
+- **Confirmed NOT a gap** — `list_resources`/`read_resource`: these are IK's
+  tool-shaped wrapper around MCP's native `resources/list`/`resources/read`
+  protocol methods, which this server already implements directly as MCP
+  resources (`unreal://project`, `unreal://status`, `unreal://level/current`,
+  etc.) rather than as callable tools. No action needed.
+- **Deliberately excluded** — `write_file`, `read_file`, `delete_file`,
+  `rename_file` (generic filesystem access, not asset-registry-scoped). IK's
+  own `IKPathSandbox.h` documents a real CVE-class bug it had to patch here
+  (an absolute-path check bypass that let a tool call touch any file on disk,
+  e.g. `/etc/passwd`). Given this project's own security-hardening history
+  (the branch this roadmap lives on), do not add unscoped filesystem tools —
+  every existing file-touching tool here goes through `EditorAssetLibrary`/the
+  content-browser asset system, which has no equivalent path-escape surface.
+- **Out of scope — different product category** — `generate_3d_model_meshy`,
+  `generate_texture_meshy`, `generate_3d_model_tripo`, `list_voices_elevenlabs`,
+  `generate_voice_elevenlabs`, `generate_sfx_elevenlabs`,
+  `generate_music_elevenlabs`, `generate_material_fal`: third-party paid
+  generative-AI service integrations (Meshy, Tripo, ElevenLabs, fal.ai). These
+  need external API keys and outbound network calls to third-party services —
+  a fundamentally different trust model than "drive the local UE editor via
+  Python," and not something this MCP server should take a dependency on.
+
+### D4. Not investigated further (out of scope / low value)
 - **Groom/hair authoring** (raw strand import) — binding an existing groom asset
   to a skeletal mesh is Tier 1 (`unreal.GroomComponent`/`GroomBindingAsset`), but
   this project has no existing hair/groom domain to extend and it's a narrow use
@@ -324,7 +363,7 @@ against each other:
   rather than promoted to D1's cross-referenced table. Still a good small
   addition to `build.ts` or `environment.ts` if picked up later.
 
-### D4. What this changes about the plugin's value proposition
+### D5. What this changes about the plugin's value proposition
 IK's own code — written with full C++ access and no Python constraint — still
 explicitly punts `create_landscape` to `execute_python`, and still needed ~625
 lines of dedicated C++ for PIE runtime control specifically (not for graph
