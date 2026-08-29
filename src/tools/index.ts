@@ -13,6 +13,7 @@ import { registerDataTableTools } from "./datatable.js";
 import { registerEditorUtilsTools } from "./editor-utils.js";
 import { registerEnvironmentTools } from "./environment.js";
 import { registerInputTools } from "./input.js";
+import { registerLevelTools } from "./level.js";
 import { registerMaterialTools } from "./material.js";
 import { registerNavigationTools } from "./navigation.js";
 import { registerNiagaraTools } from "./niagara.js";
@@ -53,6 +54,7 @@ const MODULE_REGISTRARS: Record<
 	widget: registerWidgetTools,
 	datatable: registerDataTableTools,
 	input: registerInputTools,
+	level: registerLevelTools,
 };
 
 /**

@@ -96,6 +96,7 @@ export const ALL_MODULES = [
 	"datatable",
 	"input",
 	"ai",
+	"level",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];
