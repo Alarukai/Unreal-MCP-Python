@@ -26,6 +26,7 @@ import { registerSourceControlTools } from "./source-control.js";
 import { registerTestingTools } from "./testing.js";
 import { registerWidgetTools } from "./widget.js";
 import { registerWorldPartitionTools } from "./world-partition.js";
+import { registerWorldTools } from "./world.js";
 
 // All tool modules registered
 const MODULE_REGISTRARS: Record<
@@ -57,6 +58,7 @@ const MODULE_REGISTRARS: Record<
 	input: registerInputTools,
 	level: registerLevelTools,
 	gameplay: registerGameplayTools,
+	world: registerWorldTools,
 };
 
 /**

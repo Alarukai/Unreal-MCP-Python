@@ -98,6 +98,7 @@ export const ALL_MODULES = [
 	"ai",
 	"level",
 	"gameplay",
+	"world",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];
