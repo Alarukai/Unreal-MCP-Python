@@ -95,6 +95,7 @@ export const ALL_MODULES = [
 	"widget",
 	"datatable",
 	"input",
+	"ai",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];

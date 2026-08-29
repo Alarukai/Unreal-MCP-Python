@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ConnectionManager } from "../transports/connection-manager.js";
 import type { UnrealMcpConfig } from "../types.js";
 import { registerActorTools } from "./actor.js";
+import { registerAiTools } from "./ai.js";
 import { registerAnimationTools } from "./animation.js";
 import { registerAssetTools } from "./asset.js";
 import { registerAudioTools } from "./audio.js";
@@ -31,6 +32,7 @@ const MODULE_REGISTRARS: Record<
 > = {
 	console: registerConsoleTools,
 	actor: registerActorTools,
+	ai: registerAiTools,
 	asset: registerAssetTools,
 	audio: registerAudioTools,
 	build: registerBuildTools,

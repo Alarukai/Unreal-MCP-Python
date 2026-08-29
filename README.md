@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **182 tools** across **22 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **189 tools** across **23 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -8,7 +8,7 @@ The most comprehensive MCP server for Unreal Engine — **182 tools** across **2
 
 | | unreal-mcp | [flopperam](https://github.com/flopperam/unreal-engine-mcp) | [chongdashu](https://github.com/chongdashu/unreal-mcp) | [kvick-games](https://github.com/kvick-games/UnrealMCP) | [ChiR24](https://github.com/ChiR24/Unreal_mcp) |
 |---|---|---|---|---|---|
-| Tools | **127** | ~30 | ~20 | ~5 | 36 |
+| Tools | **189** | ~30 | ~20 | ~5 | 36 |
 | Transports | **4** | 1 | 1 | 1 | 1 |
 | Requires C++ plugin | **No** | Yes | Yes | Yes | Yes |
 | Build/package tools | **Yes** | No | No | No | Partial |
@@ -95,6 +95,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **widget** | 4 | Create UMG Widget Blueprints, read/mutate the widget tree, set widget/slot properties |
 | **datatable** | 4 | Create DataTables, read/add rows, bulk JSON import |
 | **input** | 5 | Enhanced Input: InputAction/InputMappingContext creation, key mapping edit |
+| **ai** | 7 | Behavior Tree + Blackboard creation/read/edit, State Tree creation/read/state-add |
 
 ## Architecture
 
@@ -160,7 +161,7 @@ Place `.unrealmcp.json` in your project directory or home directory:
 ```
 
 **Least privilege:** only enable the modules you actually use. The default (no
-`enabledModules` set) turns on all 16 modules, including ones with real destructive/system
+`enabledModules` set) turns on all 23 modules, including ones with real destructive/system
 reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s plugin list,
 `source-control` checks in/reverts files). A tighter example for day-to-day level/content work:
 
