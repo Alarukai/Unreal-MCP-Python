@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **234 tools** across **28 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **237 tools** across **28 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -8,7 +8,7 @@ The most comprehensive MCP server for Unreal Engine — **234 tools** across **2
 
 | | unreal-mcp | [flopperam](https://github.com/flopperam/unreal-engine-mcp) | [chongdashu](https://github.com/chongdashu/unreal-mcp) | [kvick-games](https://github.com/kvick-games/UnrealMCP) | [ChiR24](https://github.com/ChiR24/Unreal_mcp) |
 |---|---|---|---|---|---|
-| Tools | **234** | ~30 | ~20 | ~5 | 36 |
+| Tools | **237** | ~30 | ~20 | ~5 | 36 |
 | Transports | **4** | 1 | 1 | 1 | 1 |
 | Requires C++ plugin | **No** | Yes | Yes | Yes | Yes |
 | Build/package tools | **Yes** | No | No | No | Partial |
@@ -86,7 +86,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **testing** | 8 | Automation tests, map check, data validation, Gauntlet |
 | **profiling** | 5 | CSV profiling, Unreal Insights traces, stat commands |
 | **source-control** | 6 | Status, checkout, checkin, revert, mark for add, diff |
-| **world-partition** | 4 | Data layers, streaming sources, loaded cells |
+| **world-partition** | 5 | Data layers, streaming sources, loaded cells, WP status info |
 | **remote-control-presets** | 5 | List/get/set preset properties, call preset functions |
 | **plugin** | 3 | List, enable, disable plugins in .uproject |
 | **environment** | 14 | Lighting, fog, post-process, physics simulation/constraints, splines |
@@ -97,7 +97,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **input** | 5 | Enhanced Input: InputAction/InputMappingContext creation, key mapping edit |
 | **ai** | 7 | Behavior Tree + Blackboard creation/read/edit, State Tree creation/read/state-add |
 | **level** | 8 | New/open/save level, level info, starter-level/light-rig/grid/ring macros |
-| **gameplay** | 13 | GAS (ability/effect/attribute set) + game-framework Blueprint presets |
+| **gameplay** | 15 | GAS (ability/effect/attribute set) + game-framework Blueprint presets, project default GameMode |
 | **world** | 7 | World settings, actor replication/net dormancy, landscape material/info |
 | **foliage** | 4 | Register foliage types, scatter/erase instances, foliage stats |
 | **pcg** | 5 | Create/find PCG graphs, spawn PCG volumes, generate, add graph nodes |

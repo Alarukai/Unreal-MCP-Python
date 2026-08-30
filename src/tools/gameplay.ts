@@ -341,4 +341,40 @@ else:
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
+
+	server.tool(
+		"get_project_settings",
+		"Get the project-wide default GameMode (Project Settings > Maps & Modes > Default GameMode) — the fallback used by any level that doesn't set its own World Settings GameMode.",
+		{},
+		{ readOnlyHint: true },
+		async () => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+print(json.dumps({"success": True, "global_default_game_mode": unreal.GameMapsSettings.get_global_default_game_mode()}))`,
+				{},
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"set_project_settings",
+		"Set the project-wide default GameMode (Project Settings > Maps & Modes > Default GameMode).",
+		{ global_default_game_mode: z.string().describe("GameMode class or Blueprint path") },
+		async ({ global_default_game_mode }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+unreal.GameMapsSettings.set_global_default_game_mode('{{global_default_game_mode}}')
+print(json.dumps({"success": True, "global_default_game_mode": unreal.GameMapsSettings.get_global_default_game_mode()}))`,
+				{ global_default_game_mode },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
 }
