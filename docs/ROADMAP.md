@@ -376,3 +376,104 @@ plugin's strongest case: **PIE runtime control**, not just Blueprint graph
 editing, is the other capability worth a C++ plugin — live-game-world
 manipulation has no Python equivalent at all today, whereas Blueprint graphs at
 least have partial Python read-back via the existing `get_blueprint_info`.
+
+---
+
+## Part E — Tier 1.6: second reference cross-check (UnrealMCPServer, 2026-08-30)
+
+A second, independent reference plugin ("UnrealMCPServer" — a dedicated C++ MCP
+server plugin, unlike IntegrationKit's chat-UI-plus-MCP design) was cross-checked
+the same way: extract every `Def.Name = TEXT("...")` from its 43 `Tools/*.cpp`
+files (291 unique tool names, considerably more than IK's 225), diff against our
+inventory, then read the actual `.cpp` bodies of the highest-value new domains
+before writing any code — not just trust the names.
+
+### E1. Two findings that resolve prior open questions
+
+- **Control Rig creation is confirmed Tier 1** — this reframes the "flagged for
+  visibility, needs a hands-on check" item from D2. UnrealMCPServer's own
+  `create_control_rig`/`get_control_rig_info`, despite being full C++ with
+  direct engine access, **deliberately routes through the Python bridge**
+  (`IPythonScriptPlugin::ExecPythonCommand`) using `unreal.ControlRigBlueprintFactory()`
+  + `asset_tools.create_asset(..., unreal.ControlRigBlueprint, factory)` +
+  `rig.set_preview_mesh(...)`, with the comment *"Control Rig is an optional
+  plugin — uses Python bridge for max compatibility"* / *"the most stable API
+  path."* **Implemented** as `control-rig.ts` (`create_control_rig`,
+  `get_control_rig_info`) — asset creation + preview mesh only, no graph/IK-chain
+  editing (that part remains Tier 2, same as Blueprint graphs).
+- **Landscape creation stays confirmed Tier 2** — this reference has a complete,
+  577-line `create_landscape` implementation (`MCPLandscapeTools.cpp`) built
+  directly on `ALandscape::Import()`: manual heightmap array construction
+  (`TArray<uint16>` at mid-grey = flat), GUID-keyed `TMap<FGuid, TArray<uint16>>`
+  layer data, `ELandscapeImportAlphamapType`, coordinate-offset math to center
+  the terrain, and safety clamps against multi-million-vertex landscapes. No
+  Python path is used anywhere in it. This is the second independent reference
+  needing non-trivial, low-level C++ for landscape creation — strong
+  confirmation of IK's own admission (D2) that this isn't Tier 1.
+
+### E2. New Tier 1 additions (implemented)
+- **Spatial utilities** (`spatial.ts`, new module): `get_actor_bounds`,
+  `line_trace`, `overlap_test`, `place_actor_on_ground`, `measure_distance`.
+  Confirmed via `UWorld::LineTraceSingleByChannel` →
+  `unreal.SystemLibrary.line_trace_single`, `UWorld::OverlapMultiByChannel` →
+  `unreal.SystemLibrary.box_overlap_actors` — both standard
+  `UKismetSystemLibrary` functions with direct Python bindings. **Caveat found
+  and corrected before shipping**: the reference's `trace_channel` options
+  (Visibility/Camera/WorldStatic/WorldDynamic/Pawn/PhysicsBody) mix two
+  different Blueprint concepts — Visibility/Camera are `ETraceTypeQuery`
+  presets, while WorldStatic/WorldDynamic/Pawn/PhysicsBody are `EObjectTypeQuery`
+  presets used by a *different* family of trace functions. Our `line_trace`/
+  `place_actor_on_ground` only expose Visibility/Camera (the two genuine
+  default `TraceTypeQuery` presets) rather than silently mismapping the other
+  four. `align_actors`, `stack_actors`, `get_spatial_context`,
+  `find_placement_position`, `get_mesh_asset_bounds` from the same source file
+  were not ported this wave — left as a follow-up if picked up later.
+
+### E3. Bugs the verification harness caught (both fixed before commit)
+- **`measure_distance`**: a JS boolean (`!!from_point`) was passed directly
+  into `inlineScript`'s template vars instead of being converted to the
+  Python literal `"True"`/`"False"` first. `ast.parse` did **not** catch this
+  — `true`/`false` are syntactically valid Python identifiers (undefined
+  names), so the bug would only have surfaced as a runtime `NameError` inside
+  the editor. Caught by manually re-reading a generated script rather than
+  trusting the parse-only pass; fixed to `from_point ? "True" : "False"`. This
+  is the first bug in this whole cross-reference effort that `ast.parse`
+  couldn't catch — a reminder that syntax validity and semantic correctness are
+  different checks, and generated scripts should still get at least one manual
+  read even when the automated pass is green.
+- **`line_trace`/`place_actor_on_ground`**: the declared `trace_channel`
+  parameter was being silently ignored — the Python always hardcoded
+  `TRACE_TYPE_QUERY1` regardless of what the caller passed. Caught on the same
+  manual re-read, not by the harness (a silently-ignored-but-valid parameter
+  produces valid, successfully-running Python — the harness has no way to
+  detect "this parameter has no effect"). Fixed by actually mapping
+  `trace_channel` through to the corresponding `unreal.TraceTypeQuery` member.
+
+### E4. Domains found but not yet triaged (large; left for a future pass)
+Per-file tool counts from the 291-name extraction, for whoever picks this up
+next: `MCPBlueprintTools` (51 — almost certainly Tier 2, same
+`FGraphNodeCreator`/`UEdGraph` restriction as our existing Blueprint graph
+tools), `MCPWidgetTools` (15), `MCPAnimGraphTools` (14 — likely split, montage/
+notify tooling already covered by our `animation.ts`, but `create_anim_state_machine`/
+`add_anim_state`/`add_anim_transition` are graph-node editing and probably
+Tier 2), `MCPActorTools` (14), `MCPSequencerTools` (12), `MCPPhysicsTools` (9),
+`MCPPCGTools` (9), `MCPGASTools`/`MCPAITools` (8 each), `MCPStaticMeshTools` (7
+— LOD/Nanite/material-slot tools, likely Tier 1 and complementary to our
+existing `generate_lods`), `MCPAssetManagementTools` (7 — folder ops, size
+reports, unused-asset finder, likely Tier 1), `MCPMetaSoundTools` (6 — the
+modern audio system replacing SoundCue; unknown Python exposure, worth
+checking independently of the earlier SoundCue finding since MetaSound is an
+architecturally different, newer system), `MCPGameFrameworkTools`/
+`MCPEnhancedInputTools`/`MCPDataTools`/`MCPAssetTools` (6 each, likely mostly
+already covered by our `gameplay.ts`/`input.ts`/`datatable.ts`/`asset.ts`),
+`MCPGameplayTagTools` (3 — `add_gameplay_tags`/`list_gameplay_tags` look
+genuinely new and Tier 1 via `unreal.GameplayTagsManager`;
+`set_actor_gameplay_tags` in this reference is **not actually gameplay tags**
+— its own code comment admits it stores plain actor `Tags` (`FName[]`), which
+our existing `set_actor_tags` already covers — skip it, don't be misled by the
+name), `MCPBatchTools` (3), `MCPSearchTools`/`MCPEngineAPITools`/
+`MCP3DModelTools`/`MCPControlRigTools` (2-3 each, `MCP3DModelTools` is a
+third-party generative service like the ones already excluded in D3),
+`MCPWorldPartitionTools`/`MCPUIImageTools` (2 each), `MCPNetworkingTools`/
+`MCPMaterialGraphTools` (0 registered tools found — likely stub/placeholder
+files in this reference). Not investigated further this wave.

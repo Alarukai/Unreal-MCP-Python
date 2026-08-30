@@ -9,6 +9,7 @@ import { registerAudioTools } from "./audio.js";
 import { registerBlueprintTools } from "./blueprint.js";
 import { registerBuildTools } from "./build.js";
 import { registerConsoleTools } from "./console.js";
+import { registerControlRigTools } from "./control-rig.js";
 import { registerDataTableTools } from "./datatable.js";
 import { registerEditorUtilsTools } from "./editor-utils.js";
 import { registerEnvironmentTools } from "./environment.js";
@@ -25,6 +26,7 @@ import { registerProfilingTools } from "./profiling.js";
 import { registerRemoteControlPresetsTools } from "./remote-control-presets.js";
 import { registerSequencerTools } from "./sequencer.js";
 import { registerSourceControlTools } from "./source-control.js";
+import { registerSpatialTools } from "./spatial.js";
 import { registerTestingTools } from "./testing.js";
 import { registerWidgetTools } from "./widget.js";
 import { registerWorldPartitionTools } from "./world-partition.js";
@@ -57,6 +59,8 @@ const MODULE_REGISTRARS: Record<
 	plugin: registerPluginTools,
 	widget: registerWidgetTools,
 	datatable: registerDataTableTools,
+	"control-rig": registerControlRigTools,
+	spatial: registerSpatialTools,
 	input: registerInputTools,
 	level: registerLevelTools,
 	gameplay: registerGameplayTools,

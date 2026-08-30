@@ -101,6 +101,8 @@ export const ALL_MODULES = [
 	"world",
 	"foliage",
 	"pcg",
+	"control-rig",
+	"spatial",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];
