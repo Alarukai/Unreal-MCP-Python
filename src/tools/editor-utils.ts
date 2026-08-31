@@ -155,6 +155,78 @@ else:
 	);
 
 	server.tool(
+		"get_mesh_complexity_report",
+		"Get a detailed complexity report for a static mesh: triangle/vertex count per LOD, Nanite state, material slot count, collision presence, and complexity warnings.",
+		{
+			mesh_path: z.string().describe("Content path to the StaticMesh asset"),
+		},
+		{ readOnlyHint: true },
+		async ({ mesh_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
+if not mesh or not isinstance(mesh, unreal.StaticMesh):
+    print(json.dumps({"error": "StaticMesh not found: {{mesh_path}}"}))
+else:
+    nanite_enabled = False
+    try:
+        nanite_enabled = bool(mesh.get_editor_property('nanite_settings').get_editor_property('enabled'))
+    except Exception:
+        pass
+
+    lod_count = mesh.get_num_lods()
+    lods = []
+    total_triangles = 0
+    total_vertices = 0
+    for lod_idx in range(lod_count):
+        try:
+            tris = mesh.get_num_triangles(lod_idx)
+            verts = mesh.get_num_vertices(lod_idx)
+        except Exception:
+            tris = 0
+            verts = 0
+        lods.append({"lod_index": lod_idx, "triangles": tris, "vertices": verts})
+        if lod_idx == 0:
+            total_triangles = tris
+            total_vertices = verts
+
+    material_slots = len(mesh.get_editor_property('static_materials'))
+    has_collision = mesh.get_editor_property('body_setup') is not None
+    bounds = mesh.get_bounds()
+
+    warnings = []
+    if total_triangles > 100000 and not nanite_enabled:
+        warnings.append(f"High poly mesh ({total_triangles} tris) without Nanite. Consider enabling Nanite.")
+    if lod_count <= 1 and total_triangles > 10000 and not nanite_enabled:
+        warnings.append("No LODs on a high-poly mesh. Add LODs or enable Nanite.")
+    if material_slots > 8:
+        warnings.append(f"High material slot count: {material_slots}. Each slot is a separate draw call.")
+
+    result = {
+        "name": mesh.get_name(),
+        "path": '{{mesh_path}}',
+        "nanite_enabled": nanite_enabled,
+        "lod_count": lod_count,
+        "lods": lods,
+        "total_triangles_lod0": total_triangles,
+        "total_vertices_lod0": total_vertices,
+        "material_slots": material_slots,
+        "bound_radius": bounds.sphere_radius,
+        "has_collision": has_collision,
+    }
+    if warnings:
+        result["warnings"] = warnings
+    print(json.dumps(result, indent=2))`,
+				{ mesh_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
 		"undo",
 		"Undo the last N editor transactions.",
 		{

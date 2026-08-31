@@ -477,3 +477,99 @@ third-party generative service like the ones already excluded in D3),
 `MCPWorldPartitionTools`/`MCPUIImageTools` (2 each), `MCPNetworkingTools`/
 `MCPMaterialGraphTools` (0 registered tools found — likely stub/placeholder
 files in this reference). Not investigated further this wave.
+
+## Part F — Tier 1.7: analysis/diagnostic tools (UnrealMCPServer, 2026-08-31)
+
+Follow-up to E4, in direct response to: *"prüfe ob es noch mehr tools gibt,
+suche ebenfalls analyse tools. kritische und vollständige Prüfung"*
+("check for more tools, also search for analysis tools; critical and
+complete review"). Unlike the earlier IK reference (`grep -rli "analy"`
+returned nothing there), UnrealMCPServer genuinely has an analysis-flavored
+surface, split across one MCP **Resource** and several tools in
+`MCPPerformanceTools.cpp`/`MCPSpatialTools.cpp`/`MCPStaticMeshTools.cpp`.
+Each candidate's C++ body was read in full before porting, per the
+established methodology.
+
+### F1. Ported this wave (all confirmed Tier 1 — plain actor/component
+reflection or `EditorStaticMeshLibrary`/`AssetRegistry` calls, no C++-only
+dependency found in any of them)
+
+- **`unreal://level/analysis`** (new MCP resource, `src/index.ts`) — ports
+  the reference's "Level Analysis" scene-health report: null static meshes,
+  missing material slots, out-of-bounds actors (`|x|/|y|/|z| > 500000`),
+  shadow-caster count, and a warnings array with the same thresholds
+  (`shadow_casters > 50`, `null_meshes > 0`, `missing_materials > 0`,
+  `out_of_bounds > 0`, `total_actors > 5000`). This is the direct answer to
+  "analyse tools" — a genuine automated scene-health check, not present in
+  the IK reference at all.
+- **`get_spatial_context`** (`src/tools/spatial.ts`) — the most
+  algorithmically complex port in either reference wave: scene bounding box
+  from all non-Brush, non-hidden actors; a configurable center/radius
+  analysis window; top-10 nearest actors; a 4-quadrant (NE/NW/SE/SW) density
+  map with densest/emptiest quadrant; ground-level estimation via 5 line
+  traces (center + 4 cardinal offsets) using the same `TraceTypeQuery`
+  pattern as `line_trace`; a 3×3 empty-space grid; and an average-nearest-
+  spacing summary over up to 20 actor pairs. Faithful to the reference's
+  algorithm (bounds, quadrant bucketing, ground traces, grid occupancy),
+  with `unreal.get_actor_bounds(False)`/`get_actor_location()` reflection
+  standing in for the C++ actor-bounds iteration.
+- **`get_render_stats`** (new `src/tools/performance.ts`) — actor count,
+  static-mesh-component count, estimated triangle/draw-call totals (draw
+  calls approximated via material-slot count per mesh, since Python has no
+  direct `LODResources.Sections.Num()` equivalent — the same proxy the
+  reference effectively uses via section count, which correlates with
+  material slots), light counts by type (point/spot/directional), shadow
+  caster count, and a top-10 class distribution — same warning thresholds
+  as the reference (`draw_calls > 5000`, `triangles > 10_000_000`,
+  `shadow_casters > 100`).
+- **`get_memory_report`** (`src/tools/performance.ts`) — **partial port,
+  honestly scoped down**. The reference's disk-based asset-size-by-category
+  section (Textures/StaticMeshes/Blueprints/Materials/Animation/Audio/Other,
+  sorted descending, top-N largest per category) is fully portable via
+  `AssetRegistryHelpers` + `os.path.getsize()` against
+  `unreal.Paths.project_content_dir()`, and was ported faithfully. The
+  reference's **system-memory section** (`FPlatformMemoryStats` —
+  used/available physical & virtual RAM) is a C++-only API with no Python
+  binding; rather than fake it or omit the gap silently, the tool's
+  description and its JSON output both explicitly say system/process memory
+  isn't included, so callers aren't misled into thinking it's missing data
+  vs. a documented limitation.
+- **`profile_actors_in_view`** (`src/tools/performance.ts`) — per-actor
+  estimated render cost (triangles, material slots, shadow casting, Nanite,
+  component count) sorted descending, distance-filtered from the editor
+  viewport camera. Uses `get_level_viewport_camera_info()` — the same
+  Python API already proven working in `console.ts`'s `get_viewport_camera`
+  — as a substitute for the reference's `FEditorViewportClient` camera
+  access; the reference's own frustum check is itself just a flat 500m
+  distance cutoff in the editor, not a real frustum test, so the port
+  matches it exactly rather than under- or over-building.
+- **`get_mesh_complexity_report`** (added to `src/tools/editor-utils.ts`,
+  next to the other static-mesh tools) — per-LOD triangle/vertex counts via
+  `StaticMesh.get_num_lods()`/`get_num_triangles()`/`get_num_vertices()`,
+  Nanite enabled state via the `nanite_settings` struct property, material
+  slot count, bounding sphere radius, collision presence, and the same
+  three complexity warnings as the reference (high-poly without Nanite, no
+  LODs on a high-poly mesh, too many material slots).
+
+### F2. Investigated and deliberately not ported
+- **`create_scene_from_template`** (`MCPPerformanceTools.cpp`) — a
+  scene-authoring macro tool (floor/lighting/sky/post-process/nav-mesh
+  presets), not an analysis tool. Out of scope for this "analyse tools"
+  pass; would belong with the existing `level.ts` starter-level macros if
+  picked up later.
+
+### F3. Verification
+Full pipeline run per the established methodology: `npm run build` (clean),
+`npm run lint` (clean, no auto-fixes needed), a Node harness generating
+representative Python for every new/changed tool across optional-field-
+omitted and optional-field-present cases (7 scripts) plus the new resource
+script (8 total) — all passed `ast.parse`; every script was also read by eye
+(catching one semantic bug: `profile_actors_in_view`'s Nanite flag was
+computed as `nanite or <raw editor-property value>` instead of
+`nanite or bool(<value>)`, which would have serialized a non-plain-bool type
+into the JSON output on a Nanite-enabled mesh — fixed before commit, no
+scripts needed regenerating since the JS boolean-literal rule wasn't the
+issue here). stdio smoke test confirms 249 tools registered, zero duplicate
+names, and the `unreal://level/analysis` resource present in
+`resources/list` alongside the existing five. `npx vitest run`: 104/104
+passed (unchanged — no existing test coverage touches these new files).

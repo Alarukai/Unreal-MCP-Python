@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **244 tools** across **30 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **249 tools** across **31 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -8,7 +8,7 @@ The most comprehensive MCP server for Unreal Engine — **244 tools** across **3
 
 | | unreal-mcp | [flopperam](https://github.com/flopperam/unreal-engine-mcp) | [chongdashu](https://github.com/chongdashu/unreal-mcp) | [kvick-games](https://github.com/kvick-games/UnrealMCP) | [ChiR24](https://github.com/ChiR24/Unreal_mcp) |
 |---|---|---|---|---|---|
-| Tools | **244** | ~30 | ~20 | ~5 | 36 |
+| Tools | **249** | ~30 | ~20 | ~5 | 36 |
 | Transports | **4** | 1 | 1 | 1 | 1 |
 | Requires C++ plugin | **No** | Yes | Yes | Yes | Yes |
 | Build/package tools | **Yes** | No | No | No | Partial |
@@ -82,7 +82,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **sequencer** | 9 | Create sequences, add tracks/bindings/keyframes, set playback range |
 | **animation** | 11 | Animation blueprints, montage authoring/read-back, modifiers, skeletal mesh |
 | **niagara** | 11 | Spawn/create/inspect particle systems, set parameters (float/vector/color/bool) |
-| **editor-utils** | 8 | Undo/redo, LOD generation, collision, lightmap UVs, utility widgets |
+| **editor-utils** | 9 | Undo/redo, LOD generation, collision, lightmap UVs, mesh complexity report, utility widgets |
 | **testing** | 8 | Automation tests, map check, data validation, Gauntlet |
 | **profiling** | 5 | CSV profiling, Unreal Insights traces, stat commands |
 | **source-control** | 6 | Status, checkout, checkin, revert, mark for add, diff |
@@ -102,7 +102,8 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **foliage** | 4 | Register foliage types, scatter/erase instances, foliage stats |
 | **pcg** | 5 | Create/find PCG graphs, spawn PCG volumes, generate, add graph nodes |
 | **control-rig** | 2 | Create Control Rig Blueprints, read preview mesh/class info |
-| **spatial** | 5 | Actor bounds, line trace, overlap test, place-on-ground, distance |
+| **spatial** | 6 | Actor bounds, line trace, overlap test, place-on-ground, distance, spatial context analysis |
+| **performance** | 3 | Render stats, disk-based memory/asset-size report, per-actor render cost profiling |
 
 ## Architecture
 

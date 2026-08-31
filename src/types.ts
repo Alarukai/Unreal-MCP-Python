@@ -103,6 +103,7 @@ export const ALL_MODULES = [
 	"pcg",
 	"control-rig",
 	"spatial",
+	"performance",
 ] as const;
 
 export type ModuleName = (typeof ALL_MODULES)[number];

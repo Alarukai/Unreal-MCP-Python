@@ -128,5 +128,69 @@ result = {
 print(json.dumps(result, indent=2))`,
 	);
 
+	editorContextResource(
+		"level-analysis",
+		"unreal://level/analysis",
+		`import unreal
+import json
+actor_subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+actors = actor_subsys.get_all_level_actors()
+world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+
+BOUNDS_LIMIT = 500000.0
+total_actors = len(actors)
+out_of_bounds = 0
+null_meshes = 0
+missing_materials = 0
+shadow_casters = 0
+
+for a in actors:
+    loc = a.get_actor_location()
+    if abs(loc.x) > BOUNDS_LIMIT or abs(loc.y) > BOUNDS_LIMIT or abs(loc.z) > BOUNDS_LIMIT:
+        out_of_bounds += 1
+
+    for mesh_comp in a.get_components_by_class(unreal.StaticMeshComponent):
+        if not mesh_comp.get_static_mesh():
+            null_meshes += 1
+        else:
+            num_slots = len(mesh_comp.get_static_mesh().get_editor_property('static_materials'))
+            for i in range(num_slots):
+                if not mesh_comp.get_material(i):
+                    missing_materials += 1
+        if mesh_comp.get_editor_property('cast_shadow'):
+            shadow_casters += 1
+
+    for light_comp in a.get_components_by_class(unreal.LightComponent):
+        if light_comp.get_editor_property('cast_shadows'):
+            shadow_casters += 1
+
+warnings = []
+if shadow_casters > 50:
+    warnings.append(f"High shadow caster count ({shadow_casters}). May impact rendering performance.")
+if null_meshes > 0:
+    warnings.append(f"{null_meshes} static mesh component(s) with no mesh assigned.")
+if missing_materials > 0:
+    warnings.append(f"{missing_materials} material slot(s) with no material assigned.")
+if out_of_bounds > 0:
+    warnings.append(f"{out_of_bounds} actor(s) outside the normal world bounds (+/-{int(BOUNDS_LIMIT)}).")
+if total_actors > 5000:
+    warnings.append(f"High actor count ({total_actors}). May impact editor and runtime performance.")
+
+result = {
+    "level": world.get_name() if world else None,
+    "total_actors": total_actors,
+    "issues": {
+        "null_meshes": null_meshes,
+        "missing_materials": missing_materials,
+        "out_of_bounds_actors": out_of_bounds,
+        "shadow_casters": shadow_casters,
+    },
+    "warning_count": len(warnings),
+    "warnings": warnings,
+    "status": "No issues detected" if not warnings else f"{len(warnings)} warning(s) found",
+}
+print(json.dumps(result, indent=2))`,
+	);
+
 	return { server, config };
 }

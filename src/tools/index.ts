@@ -21,6 +21,7 @@ import { registerMaterialTools } from "./material.js";
 import { registerNavigationTools } from "./navigation.js";
 import { registerNiagaraTools } from "./niagara.js";
 import { registerPcgTools } from "./pcg.js";
+import { registerPerformanceTools } from "./performance.js";
 import { registerPluginTools } from "./plugin.js";
 import { registerProfilingTools } from "./profiling.js";
 import { registerRemoteControlPresetsTools } from "./remote-control-presets.js";
@@ -67,6 +68,7 @@ const MODULE_REGISTRARS: Record<
 	world: registerWorldTools,
 	foliage: registerFoliageTools,
 	pcg: registerPcgTools,
+	performance: registerPerformanceTools,
 };
 
 /**

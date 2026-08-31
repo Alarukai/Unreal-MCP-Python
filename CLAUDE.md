@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-An MCP (Model Context Protocol) server for Unreal Engine — 244 tools across 30 subsystems. TypeScript/Node.js, ESM, communicates with UE via four transport layers.
+An MCP (Model Context Protocol) server for Unreal Engine — 249 tools across 31 subsystems. TypeScript/Node.js, ESM, communicates with UE via four transport layers.
 
 ## Commands
 
@@ -24,7 +24,7 @@ stdio (MCP protocol)
   → bin.ts                    # CLI entry, creates server + StdioTransport
   → index.ts                  # createServer() factory, registers tools & resources
   → ConnectionManager         # Orchestrates all 4 transports
-  → 30 Tool Modules           # Each exports register*Tools(server, manager, config)
+  → 31 Tool Modules           # Each exports register*Tools(server, manager, config)
   → 4 Transports → Unreal Engine
 ```
 
@@ -64,7 +64,7 @@ This project was built referencing four existing Unreal MCP implementations:
 | [kvick-games/UnrealMCP](https://github.com/kvick-games/UnrealMCP) | C++ | ~5 | TCP on port 13377 | Early WIP, minimal toolset |
 | [ChiR24/Unreal_mcp](https://github.com/ChiR24/Unreal_mcp) | TypeScript + C++ | 36 | TCP on port 8091 | Action-based dispatch, good security defaults |
 
-Our differentiator: 244 tools, 4 transport layers (most projects have 1), graceful degradation, no mandatory C++ plugin.
+Our differentiator: 249 tools, 4 transport layers (most projects have 1), graceful degradation, no mandatory C++ plugin.
 
 ## Plugin Enhancement Layer
 
