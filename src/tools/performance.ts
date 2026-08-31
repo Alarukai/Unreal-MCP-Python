@@ -37,7 +37,7 @@ for a in actors:
     class_distribution[class_name] = class_distribution.get(class_name, 0) + 1
 
     for smc in a.get_components_by_class(unreal.StaticMeshComponent):
-        mesh = smc.get_static_mesh()
+        mesh = smc.get_editor_property('static_mesh')
         if not mesh:
             continue
         static_mesh_components += 1
@@ -225,7 +225,7 @@ for a in actors:
     nanite = False
 
     for smc in a.get_components_by_class(unreal.StaticMeshComponent):
-        mesh = smc.get_static_mesh()
+        mesh = smc.get_editor_property('static_mesh')
         if not mesh:
             continue
         components += 1

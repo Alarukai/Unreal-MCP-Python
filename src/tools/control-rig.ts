@@ -42,11 +42,25 @@ else:
         else:
             warnings = []
             try:
-                preview_mesh = skeleton.get_preview_mesh(True)
+                # unreal.Skeleton exposes no preview-mesh accessor in UE 5.x
+                # Python — resolve one by scanning for a SkeletalMesh that
+                # references this skeleton.
+                skel_path = skeleton.get_path_name()
+                registry = unreal.AssetRegistryHelpers.get_asset_registry()
+                skm_datas = registry.get_assets_by_class(
+                    unreal.TopLevelAssetPath('/Script/Engine', 'SkeletalMesh'), True
+                )
+                preview_mesh = None
+                for skm_data in skm_datas:
+                    skm = unreal.EditorAssetLibrary.load_asset(str(skm_data.package_name))
+                    skm_skel = skm.get_editor_property('skeleton') if skm else None
+                    if skm_skel and skm_skel.get_path_name() == skel_path:
+                        preview_mesh = skm
+                        break
                 if preview_mesh:
                     rig.set_preview_mesh(preview_mesh, True)
                 else:
-                    warnings.append('Skeleton has no preview mesh set')
+                    warnings.append('No SkeletalMesh references this skeleton; preview mesh not set')
             except Exception as e:
                 warnings.append('set_preview_mesh: ' + str(e))
             unreal.EditorAssetLibrary.save_asset(rig.get_path_name())

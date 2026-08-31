@@ -573,3 +573,98 @@ issue here). stdio smoke test confirms 249 tools registered, zero duplicate
 names, and the `unreal://level/analysis` resource present in
 `resources/list` alongside the existing five. `npx vitest run`: 104/104
 passed (unchanged — no existing test coverage touches these new files).
+
+## Part G — real execution verification (2026-08-31)
+
+Everything through Part F was verified only by `ast.parse` (a pure syntax
+check) plus reading the generated Python by eye. `ast.parse` cannot see a
+wrong `unreal.*` name, a protected struct field, a changed binding
+signature, or a return-type mismatch — none of that shows up until the
+code actually runs inside the editor. Part G is that missing step: every
+Part E–F analysis/spatial/control-rig tool was invoked once against a live
+**UE 5.6.1** editor (TopDown template level, Python Remote Execution +
+Remote Control both connected) via a real MCP stdio client, with test
+actors (`TestCube`/`TestCylinder` static meshes, `TestPointLight`) spawned
+first so the analysers had data. Optional-field-omitted and
+optional-field-present argument forms were both exercised, plus the
+not-found error paths.
+
+### G1. Confirmed working against the running engine
+- **`get_actor_bounds`**, **`measure_distance`** (actor↔actor,
+  point↔point, and the "missing second operand" error path) — clean on
+  the first run, no changes needed.
+- **`get_mesh_complexity_report`** — clean; per-LOD tris/verts, Nanite
+  state, material slots, collision, bound radius all populate. (The
+  `StaticMesh` asset-level API it uses — `get_num_lods`,
+  `get_num_triangles`, `nanite_settings` — is unaffected by the component
+  bug below.)
+- **`get_memory_report`** — clean (default path and a narrowed
+  `path`/`limit`). Category buckets are heuristic: a `SkeletalMesh` lands
+  in "Other" (name contains neither "Anim" nor "Skeleton") and a Control
+  Rig asset lands in "Blueprints" ("ControlRigBlueprint" contains
+  "Blueprint"). Cosmetic, left as-is.
+- **`get_control_rig_info`** — clean, including the not-found path.
+- After the G2 fixes: **`unreal://level/analysis`**, **`get_render_stats`**,
+  **`profile_actors_in_view`** (default + `limit`/`include_lights`),
+  **`get_spatial_context`** (auto-centre + explicit centre/radius),
+  **`line_trace`** (hit *and* miss), **`overlap_test`** (arbitrary
+  box / at-actor / all-defaults), **`place_actor_on_ground`**, and
+  **`create_control_rig`** (asset creation *and* preview-mesh assignment,
+  verified by reading it back with `get_control_rig_info`).
+
+### G2. Bugs the live run found that `ast.parse` could not
+All five are runtime API mismatches — syntactically valid Python that
+raised the moment it hit the editor. Every affected tool had previously
+"passed" verification.
+
+1. **`StaticMeshComponent.get_static_mesh()` does not exist in UE 5.6**
+   (`AttributeError`). The method is not bound; only `set_static_mesh()`
+   and the `static_mesh` editor property exist. Broke **`get_render_stats`**
+   and **`profile_actors_in_view`** (`src/tools/performance.ts`) and the
+   **`unreal://level/analysis`** resource (`src/index.ts`) — each on its
+   first mesh component, i.e. immediately in any non-empty level. Fixed by
+   reading `smc.get_editor_property('static_mesh')`.
+2. **`unreal.Vector` has no `.size()`** (`AttributeError`). UE's Python
+   `Vector` exposes `.length()` / `.length_squared()` (and `distance*`
+   variants), not `.size()`. Broke **`get_spatial_context`** on the first
+   bounded actor. Fixed to `.length()`.
+3. **`HitResult` struct fields are protected in the Python bindings.**
+   `hit.location`, `hit.normal`, `hit.distance`, `hit.hit_actor`,
+   `hit.hit_component` all fail — as attributes *and* via
+   `get_editor_property` ("Property 'Location' … is protected and cannot
+   be read"). `unreal.GameplayStatics.break_hit_result` is also absent in
+   5.6. The only accessor is `HitResult.to_tuple()`, whose element order
+   follows `FHitResult`'s `UPROPERTY` declaration
+   (`4`=location, `6`=normal, `3`=distance, `9`=hit_actor,
+   `10`=hit_component). Broke **`line_trace`**, **`place_actor_on_ground`**,
+   and the ground-probe loop in **`get_spatial_context`**. Fixed by
+   unpacking `to_tuple()` with a documented index map.
+   *(The `if not hit:` miss check was already correct —
+   `line_trace_single` returns `None` on a miss, verified.)*
+4. **`SystemLibrary.box_overlap_actors()` takes 6 args, not 7, and
+   returns the actor `Array` directly** (`TypeError: … takes at most 6
+   arguments (7 given)`). The generated code passed a Python list as a
+   7th "out array" arg (a C++ calling convention that the binding does
+   not use) and ignored the return value. Broke **`overlap_test`** in
+   every mode. Fixed to the 6-arg form using the return value.
+5. **`Skeleton.get_preview_mesh()` does not exist in UE 5.6.** The
+   exception was swallowed into `warnings`, so **`create_control_rig`**
+   still reported `"success": true` while silently never setting the
+   preview mesh — the failure was invisible without reading the asset
+   back. `unreal.Skeleton` exposes no preview-mesh accessor at all;
+   replaced with an asset-registry scan for a `SkeletalMesh` whose
+   `skeleton` property matches, which now resolves and sets the mesh
+   (`get_control_rig_info` confirms `preview_mesh: SKM_Manny_Simple`).
+
+Net: 4 files touched (`src/index.ts`, `src/tools/performance.ts`,
+`src/tools/spatial.ts`, `src/tools/control-rig.ts`), 5 distinct UE-5.6
+API-contract bugs, all in code that the syntax-only harness had marked
+green. Takeaway: `ast.parse` gates syntax; it says nothing about whether
+an `unreal` symbol exists, is readable, or has the assumed signature —
+those need a live editor.
+
+### G3. Re-verification
+`npm run build` clean, `npm run lint` clean (no auto-fixes), `npx vitest
+run` 104/104. Each fixed tool was re-invoked against the same live editor
+until it returned a well-formed result; test actors and the scratch
+`/Game/GTest` Control Rig folder were deleted afterwards.

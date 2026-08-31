@@ -150,10 +150,11 @@ for a in actors:
         out_of_bounds += 1
 
     for mesh_comp in a.get_components_by_class(unreal.StaticMeshComponent):
-        if not mesh_comp.get_static_mesh():
+        comp_mesh = mesh_comp.get_editor_property('static_mesh')
+        if not comp_mesh:
             null_meshes += 1
         else:
-            num_slots = len(mesh_comp.get_static_mesh().get_editor_property('static_materials'))
+            num_slots = len(comp_mesh.get_editor_property('static_materials'))
             for i in range(num_slots):
                 if not mesh_comp.get_material(i):
                     missing_materials += 1
