@@ -186,4 +186,236 @@ else:
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
+
+	server.tool(
+		"read_montage",
+		"Read an animation montage's sections, slot tracks, and notifies (best-effort — AnimMontage's Python-exposed reflection surface is version-sensitive; fields that fail to read come back null rather than failing the whole call).",
+		{ montage_path: z.string().describe("AnimMontage asset path") },
+		{ readOnlyHint: true },
+		async ({ montage_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+montage = unreal.EditorAssetLibrary.load_asset('{{montage_path}}')
+if not montage or not isinstance(montage, unreal.AnimMontage):
+    print(json.dumps({"error": "AnimMontage not found: {{montage_path}}"}))
+else:
+    sections = []
+    try:
+        for s in montage.get_editor_property('CompositeSections'):
+            entry = {}
+            try:
+                entry["name"] = str(s.get_editor_property('SectionName'))
+            except Exception:
+                entry["name"] = None
+            try:
+                entry["next_section"] = str(s.get_editor_property('NextSectionName'))
+            except Exception:
+                entry["next_section"] = None
+            sections.append(entry)
+    except Exception as e:
+        sections = None
+    slots = []
+    try:
+        for track in montage.get_editor_property('SlotAnimTracks'):
+            slot_entry = {"slot_name": None, "segments": []}
+            try:
+                slot_entry["slot_name"] = str(track.get_editor_property('SlotName'))
+            except Exception:
+                pass
+            try:
+                anim_track = track.get_editor_property('AnimTrack')
+                for seg in anim_track.get_editor_property('AnimSegments'):
+                    seg_entry = {}
+                    try:
+                        seg_entry["start_pos"] = seg.get_editor_property('StartPos')
+                        seg_entry["end_pos"] = seg.get_editor_property('EndPos')
+                    except Exception:
+                        pass
+                    slot_entry["segments"].append(seg_entry)
+            except Exception:
+                pass
+            slots.append(slot_entry)
+    except Exception:
+        slots = None
+    notifies = []
+    try:
+        for n in montage.get_editor_property('Notifies'):
+            n_entry = {}
+            try:
+                n_entry["name"] = str(n.get_editor_property('NotifyName'))
+            except Exception:
+                n_entry["name"] = None
+            try:
+                n_entry["trigger_time_offset"] = n.get_editor_property('TriggerTimeOffset')
+            except Exception:
+                n_entry["trigger_time_offset"] = None
+            notifies.append(n_entry)
+    except Exception:
+        notifies = None
+    print(json.dumps({
+        "success": True,
+        "name": montage.get_name(),
+        "sections": sections,
+        "slots": slots,
+        "notifies": notifies,
+    }, indent=2))`,
+				{ montage_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"add_montage_section",
+		"Add a named composite section to an animation montage. Best-effort against a version-sensitive struct API — verify the result in the Montage editor.",
+		{
+			montage_path: z.string().describe("AnimMontage asset path"),
+			section_name: z.string().describe("New section name"),
+		},
+		async ({ montage_path, section_name }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+montage = unreal.EditorAssetLibrary.load_asset('{{montage_path}}')
+if not montage or not isinstance(montage, unreal.AnimMontage):
+    print(json.dumps({"error": "AnimMontage not found: {{montage_path}}"}))
+else:
+    try:
+        sections = list(montage.get_editor_property('CompositeSections'))
+        new_section = unreal.CompositeSection()
+        new_section.set_editor_property('SectionName', '{{section_name}}')
+        sections.append(new_section)
+        montage.set_editor_property('CompositeSections', sections)
+        unreal.EditorAssetLibrary.save_asset('{{montage_path}}')
+        print(json.dumps({"success": True, "section": "{{section_name}}", "total_sections": len(sections)}))
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))`,
+				{ montage_path, section_name },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"link_montage_sections",
+		"Set which section plays next after a given montage section (controls playback order / looping). Sets CompositeSections[section_name].NextSectionName.",
+		{
+			montage_path: z.string().describe("AnimMontage asset path"),
+			section_name: z.string().describe("Section to modify"),
+			next_section_name: z.string().describe("Section that should play after section_name"),
+		},
+		async ({ montage_path, section_name, next_section_name }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+montage = unreal.EditorAssetLibrary.load_asset('{{montage_path}}')
+if not montage or not isinstance(montage, unreal.AnimMontage):
+    print(json.dumps({"error": "AnimMontage not found: {{montage_path}}"}))
+else:
+    try:
+        sections = list(montage.get_editor_property('CompositeSections'))
+        found = False
+        for s in sections:
+            if str(s.get_editor_property('SectionName')) == '{{section_name}}':
+                s.set_editor_property('NextSectionName', '{{next_section_name}}')
+                found = True
+                break
+        if not found:
+            print(json.dumps({"error": "Section not found: {{section_name}}", "available": [str(s.get_editor_property('SectionName')) for s in sections]}))
+        else:
+            montage.set_editor_property('CompositeSections', sections)
+            unreal.EditorAssetLibrary.save_asset('{{montage_path}}')
+            print(json.dumps({"success": True, "section": "{{section_name}}", "next_section": "{{next_section_name}}"}))
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))`,
+				{ montage_path, section_name, next_section_name },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"add_montage_notify",
+		"Add a simple named notify marker to an animation montage. Best-effort against a version-sensitive struct API (FAnimNotifyEvent) — verify placement in the Montage editor afterward.",
+		{
+			montage_path: z.string().describe("AnimMontage asset path"),
+			notify_name: z.string().describe("Notify name/label"),
+		},
+		async ({ montage_path, notify_name }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+montage = unreal.EditorAssetLibrary.load_asset('{{montage_path}}')
+if not montage or not isinstance(montage, unreal.AnimMontage):
+    print(json.dumps({"error": "AnimMontage not found: {{montage_path}}"}))
+else:
+    try:
+        notifies = list(montage.get_editor_property('Notifies'))
+        new_notify = unreal.AnimNotifyEvent()
+        warnings = []
+        try:
+            new_notify.set_editor_property('NotifyName', '{{notify_name}}')
+        except Exception as e:
+            warnings.append('NotifyName: ' + str(e))
+        notifies.append(new_notify)
+        montage.set_editor_property('Notifies', notifies)
+        unreal.EditorAssetLibrary.save_asset('{{montage_path}}')
+        print(json.dumps({"success": True, "notify": "{{notify_name}}", "total_notifies": len(notifies), "warnings": warnings}))
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))`,
+				{ montage_path, notify_name },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"read_anim_blueprint",
+		"Read an Animation Blueprint's target skeleton, parent class, and graph list.",
+		{ blueprint_path: z.string().describe("AnimBlueprint asset path") },
+		{ readOnlyHint: true },
+		async ({ blueprint_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+bp = unreal.EditorAssetLibrary.load_asset('{{blueprint_path}}')
+if not bp or not isinstance(bp, unreal.AnimBlueprint):
+    print(json.dumps({"error": "AnimBlueprint not found: {{blueprint_path}}"}))
+else:
+    result = {"name": bp.get_name(), "path": bp.get_path_name()}
+    try:
+        skeleton = bp.get_editor_property('TargetSkeleton')
+        result["target_skeleton"] = skeleton.get_name() if skeleton else None
+    except Exception:
+        result["target_skeleton"] = None
+    try:
+        parent = bp.get_editor_property('ParentClass')
+        result["parent_class"] = parent.get_name() if parent else None
+    except Exception:
+        result["parent_class"] = None
+    graphs = []
+    for prop_name in ('UbergraphPages', 'FunctionGraphs', 'MacroGraphs'):
+        try:
+            for g in bp.get_editor_property(prop_name):
+                graphs.append({"name": g.get_name(), "kind": prop_name})
+        except Exception:
+            pass
+    result["graphs"] = graphs
+    print(json.dumps(result, indent=2))`,
+				{ blueprint_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
 }

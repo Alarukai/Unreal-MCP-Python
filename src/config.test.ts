@@ -19,6 +19,8 @@ describe("parseCliArgs", () => {
 			"9999",
 			"--multicast-bind",
 			"0.0.0.0",
+			"--multicast-iface",
+			"192.168.1.50",
 			"--platform",
 			"Linux",
 			"--configuration",
@@ -33,6 +35,7 @@ describe("parseCliArgs", () => {
 			pythonExecPort: 5678,
 			pluginBridgePort: 9999,
 			multicastBindAddress: "0.0.0.0",
+			multicastInterface: "192.168.1.50",
 			platform: "Linux",
 			configuration: "Shipping",
 			enabledModules: ["asset", "blueprint", "material"],
@@ -59,6 +62,7 @@ describe("loadConfig", () => {
 		"UNREAL_MCP_RC_PORT",
 		"UNREAL_MCP_PYTHON_PORT",
 		"UNREAL_MCP_MULTICAST_BIND",
+		"UNREAL_MCP_MULTICAST_IFACE",
 		"UNREAL_MCP_PLATFORM",
 		"UNREAL_MCP_CONFIGURATION",
 		"UNREAL_MCP_MODULES",
@@ -152,6 +156,15 @@ describe("loadConfig", () => {
 	it("splits and trims UNREAL_MCP_MODULES from the environment", () => {
 		process.env.UNREAL_MCP_MODULES = "asset, blueprint ,material";
 		expect(loadConfig([]).enabledModules).toEqual(["asset", "blueprint", "material"]);
+	});
+
+	it("leaves multicastInterface unset by default (auto-detected downstream)", () => {
+		expect(loadConfig([]).multicastInterface).toBeUndefined();
+	});
+
+	it("applies UNREAL_MCP_MULTICAST_IFACE from the environment", () => {
+		process.env.UNREAL_MCP_MULTICAST_IFACE = "10.0.0.5";
+		expect(loadConfig([]).multicastInterface).toBe("10.0.0.5");
 	});
 
 	it("resolves a relative projectPath to an absolute path", () => {

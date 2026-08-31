@@ -1,7 +1,7 @@
 # Unreal-MCP-Python
 Original by sam-david
 
-The most comprehensive MCP server for Unreal Engine — **127 tools** across **16 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **249 tools** across **31 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -9,7 +9,7 @@ The most comprehensive MCP server for Unreal Engine — **127 tools** across **1
 
 | | unreal-mcp | [flopperam](https://github.com/flopperam/unreal-engine-mcp) | [chongdashu](https://github.com/chongdashu/unreal-mcp) | [kvick-games](https://github.com/kvick-games/UnrealMCP) | [ChiR24](https://github.com/ChiR24/Unreal_mcp) |
 |---|---|---|---|---|---|
-| Tools | **127** | ~30 | ~20 | ~5 | 36 |
+| Tools | **249** | ~30 | ~20 | ~5 | 36 |
 | Transports | **4** | 1 | 1 | 1 | 1 |
 | Requires C++ plugin | **No** | Yes | Yes | Yes | Yes |
 | Build/package tools | **Yes** | No | No | No | Partial |
@@ -74,22 +74,37 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 
 | Module | Tools | Description |
 |--------|-------|-------------|
-| **actor** | 10 | Spawn, delete, transform, select, duplicate, tag actors |
+| **actor** | 13 | Spawn, delete, transform, select, duplicate, tag, attach/detach, rename actors |
 | **asset** | 16 | List, search, import, export, rename, delete, validate assets |
 | **blueprint** | 12 | Create blueprints, add components/variables/functions, graph nodes |
-| **build** | 9 | Build targets, cook content, package, generate project files |
-| **material** | 13 | Create materials/instances, add expressions, wire graphs |
-| **console** | 6 | Execute Python, console commands, screenshots, viewport camera |
-| **sequencer** | 8 | Create sequences, add tracks/bindings, set playback range |
-| **animation** | 6 | Animation blueprints, montages, modifiers, skeletal mesh |
-| **niagara** | 8 | Spawn particle systems, set parameters (float/vector/color/bool) |
-| **editor-utils** | 8 | Undo/redo, LOD generation, collision, lightmap UVs, utility widgets |
+| **build** | 12 | Build targets, cook content, package, generate project files, project/build/map-check info |
+| **material** | 23 | Create materials/instances, add expressions, wire graphs, typed material function editing, slots/textures/batch instance updates |
+| **console** | 7 | Execute Python, console commands, screenshots, viewport camera, read editor log |
+| **sequencer** | 9 | Create sequences, add tracks/bindings/keyframes, set playback range |
+| **animation** | 11 | Animation blueprints, montage authoring/read-back, modifiers, skeletal mesh |
+| **niagara** | 11 | Spawn/create/inspect particle systems, set parameters (float/vector/color/bool) |
+| **editor-utils** | 9 | Undo/redo, LOD generation, collision, lightmap UVs, mesh complexity report, utility widgets |
 | **testing** | 8 | Automation tests, map check, data validation, Gauntlet |
 | **profiling** | 5 | CSV profiling, Unreal Insights traces, stat commands |
 | **source-control** | 6 | Status, checkout, checkin, revert, mark for add, diff |
-| **world-partition** | 4 | Data layers, streaming sources, loaded cells |
+| **world-partition** | 5 | Data layers, streaming sources, loaded cells, WP status info |
 | **remote-control-presets** | 5 | List/get/set preset properties, call preset functions |
 | **plugin** | 3 | List, enable, disable plugins in .uproject |
+| **environment** | 14 | Lighting, fog, post-process, physics simulation/constraints, splines |
+| **audio** | 3 | Spawn ambient sounds, set volume/pitch/auto-activate, sound asset metadata |
+| **navigation** | 3 | Build NavMesh, synchronous pathfinding queries, NavMeshBoundsVolume info |
+| **widget** | 4 | Create UMG Widget Blueprints, read/mutate the widget tree, set widget/slot properties |
+| **datatable** | 4 | Create DataTables, read/add rows, bulk JSON import |
+| **input** | 5 | Enhanced Input: InputAction/InputMappingContext creation, key mapping edit |
+| **ai** | 7 | Behavior Tree + Blackboard creation/read/edit, State Tree creation/read/state-add |
+| **level** | 8 | New/open/save level, level info, starter-level/light-rig/grid/ring macros |
+| **gameplay** | 15 | GAS (ability/effect/attribute set) + game-framework Blueprint presets, project default GameMode |
+| **world** | 7 | World settings, actor replication/net dormancy, landscape material/info |
+| **foliage** | 4 | Register foliage types, scatter/erase instances, foliage stats |
+| **pcg** | 5 | Create/find PCG graphs, spawn PCG volumes, generate, add graph nodes |
+| **control-rig** | 2 | Create Control Rig Blueprints, read preview mesh/class info |
+| **spatial** | 6 | Actor bounds, line trace, overlap test, place-on-ground, distance, spatial context analysis |
+| **performance** | 3 | Render stats, disk-based memory/asset-size report, per-actor render cost profiling |
 
 ## Architecture
 
@@ -130,6 +145,7 @@ Three-layer priority: CLI args > environment variables > config file > defaults.
 | `UNREAL_MCP_RC_PORT` | 30010 | Remote Control API port |
 | `UNREAL_MCP_PYTHON_PORT` | 6776 | Python Remote Execution port |
 | `UNREAL_MCP_MULTICAST_BIND` | 127.0.0.1 | Bind address for the Python Remote Execution discovery socket. See the security warning above before setting this to `0.0.0.0`. |
+| `UNREAL_MCP_MULTICAST_IFACE` | auto-detect | Outbound interface (IPv4) for multicast discovery pings. Only relevant once `UNREAL_MCP_MULTICAST_BIND` is widened past loopback — on hosts with multiple network adapters (Bluetooth PAN, Wi-Fi Direct, VPNs, an unplugged NIC), the OS can pick a link-local `169.254.*` adapter that never reaches the editor. Auto-detects the first real external IPv4; set this explicitly if auto-detection picks the wrong one. |
 | `UNREAL_MCP_PLATFORM` | Win64 | Target platform |
 | `UNREAL_MCP_CONFIGURATION` | Development | Build configuration |
 | `UNREAL_MCP_MODULES` | all | Comma-separated list of modules to enable |
@@ -154,7 +170,7 @@ Place `.unrealmcp.json` in your project directory or home directory:
 ```
 
 **Least privilege:** only enable the modules you actually use. The default (no
-`enabledModules` set) turns on all 16 modules, including ones with real destructive/system
+`enabledModules` set) turns on all 30 modules, including ones with real destructive/system
 reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s plugin list,
 `source-control` checks in/reverts files). A tighter example for day-to-day level/content work:
 
@@ -215,7 +231,7 @@ reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s p
 **Still getting "No Unreal Editor nodes found"?**
 - **VPN/Tailscale users:** Tailscale's virtual network adapter can hijack multicast. Try temporarily disabling Tailscale, or disable the Tailscale network adapter in Windows Network Connections.
 - **Firewall:** Allow UDP port 6766 and TCP port 6776, or temporarily disable Windows Firewall to test.
-- **Multiple adapters:** WSL, Hyper-V, and VPN adapters can all cause multicast to bind to the wrong interface. Disabling unused adapters helps.
+- **Multiple adapters (Bluetooth PAN, Wi-Fi Direct, an unplugged NIC, WSL, Hyper-V, VPNs):** once `UNREAL_MCP_MULTICAST_BIND` is widened past `127.0.0.1`, discovery pings can leave on the wrong adapter — Windows often picks a link-local `169.254.*` one the editor never sees, even though the editor is answering pings sent on the correct adapter. Set `UNREAL_MCP_MULTICAST_IFACE` to your real LAN IP to pin the outbound interface explicitly, rather than disabling unused adapters.
 
 ### Optional (for Remote Control tools)
 
@@ -231,6 +247,23 @@ reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s p
 ### Optional (for Blueprint graph tools)
 
 Install the C++ plugin from `plugin/UnrealMCPBridge/` into your project's `Plugins/` directory. This enables `add_graph_node`, `connect_graph_nodes`, and `remove_graph_node`.
+
+## Roadmap
+
+Planned work is split by whether it needs the optional C++ plugin:
+
+- **[Tier 1 — no plugin](docs/ROADMAP.md)** — achievable today over Python
+  Remote Execution / Remote Control. Covers communication improvements
+  (`read_log` to surface the real UE Output Log, build progress notifications,
+  editor-context resources) and new domains (a full **environment** module —
+  lighting, fog, post-process, physics, splines — plus **audio**, **navigation**,
+  and **widget** authoring), along with read-back/inspect gaps in the niagara,
+  animation, sequencer, and material modules. Also captures the security
+  invariants to keep as the surface grows.
+- **[Tier 2 — optional C++ plugin](docs/TIER2-PLUGIN.md)** — capabilities Unreal
+  does not expose to Python: real Blueprint graph node editing, offscreen
+  render-to-PNG feedback (graph / widget / material thumbnail), node auto-layout,
+  and Blueprint debugging (breakpoints, watches, compile-error introspection).
 
 ## Development
 

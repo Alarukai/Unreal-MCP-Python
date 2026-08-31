@@ -457,4 +457,592 @@ else:
 			return { content: [{ type: "text", text: result }] };
 		},
 	);
+
+	server.tool(
+		"find_material_functions",
+		"Search a content directory for Material Function assets.",
+		{
+			directory: z.string().default("/Game").describe("Content directory path"),
+			recursive: z.boolean().default(true).describe("Include subdirectories"),
+		},
+		{ readOnlyHint: true },
+		async ({ directory, recursive }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+assets = registry.get_assets_by_path('{{directory}}', {{recursive}}) or []
+results = []
+for a in assets:
+    cls = str(a.asset_class_path.asset_name) if hasattr(a, 'asset_class_path') else str(a.asset_class)
+    if cls != 'MaterialFunction':
+        continue
+    results.append({
+        "name": str(a.asset_name),
+        "path": str(a.package_name) + '.' + str(a.asset_name),
+        "package": str(a.package_name),
+    })
+print(json.dumps(results, indent=2))`,
+				{ directory, recursive: recursive ? "True" : "False" },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"inspect_material_function",
+		"Inspect a Material Function's graph: all expression nodes, plus a specifically-typed breakdown of its FunctionInput/FunctionOutput pins (name, type, default preview value).",
+		{ function_path: z.string().describe("Material function asset path") },
+		{ readOnlyHint: true },
+		async ({ function_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+mel = unreal.MaterialEditingLibrary
+func = unreal.EditorAssetLibrary.load_asset('{{function_path}}')
+if not func or not isinstance(func, unreal.MaterialFunction):
+    print(json.dumps({"error": "MaterialFunction not found: {{function_path}}"}))
+else:
+    expressions = mel.get_material_expressions(func)
+    all_expr = [{"name": e.get_name(), "class": e.get_class().get_name()} for e in expressions]
+    inputs = []
+    outputs = []
+    for e in expressions:
+        if isinstance(e, unreal.MaterialExpressionFunctionInput):
+            entry = {"name": e.get_name()}
+            try:
+                entry["input_name"] = str(e.get_editor_property('InputName'))
+            except Exception:
+                entry["input_name"] = None
+            try:
+                entry["input_type"] = str(e.get_editor_property('InputType'))
+            except Exception:
+                entry["input_type"] = None
+            try:
+                pv = e.get_editor_property('PreviewValue')
+                entry["preview_value"] = {"x": pv.x, "y": pv.y, "z": pv.z, "w": pv.w}
+            except Exception:
+                entry["preview_value"] = None
+            inputs.append(entry)
+        elif isinstance(e, unreal.MaterialExpressionFunctionOutput):
+            entry = {"name": e.get_name()}
+            try:
+                entry["output_name"] = str(e.get_editor_property('OutputName'))
+            except Exception:
+                entry["output_name"] = None
+            outputs.append(entry)
+    print(json.dumps({
+        "success": True,
+        "name": func.get_name(),
+        "expressions": all_expr,
+        "inputs": inputs,
+        "outputs": outputs,
+    }, indent=2))`,
+				{ function_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"edit_material_function",
+		"Edit a Material Function's graph: add a typed input pin, add an output pin, delete an expression, or connect two expressions. Reuses MaterialEditingLibrary (the same API used for regular materials), which also operates on MaterialFunction assets.",
+		{
+			function_path: z.string().describe("Material function asset path"),
+			operation: z
+				.enum(["add_input", "add_output", "delete_expression", "connect"])
+				.describe("Which edit to perform"),
+			name: z.string().optional().describe("Pin name — required for add_input/add_output"),
+			input_type: z
+				.enum([
+					"Scalar",
+					"Vector2",
+					"Vector3",
+					"Vector4",
+					"Texture2D",
+					"TextureCube",
+					"StaticBool",
+					"MaterialAttributes",
+				])
+				.optional()
+				.describe("Input pin type — required for add_input"),
+			preview_value: z
+				.object({
+					x: z.number().default(0),
+					y: z.number().default(0),
+					z: z.number().default(0),
+					w: z.number().default(1),
+				})
+				.optional()
+				.describe(
+					"Default value for add_input on Scalar (uses x)/Vector2 (x,y)/Vector3 (x,y,z)/Vector4 (x,y,z,w) inputs. Ignored for Texture2D/TextureCube/MaterialAttributes.",
+				),
+			bool_value: z
+				.boolean()
+				.optional()
+				.describe("Default value for add_input on a StaticBool input"),
+			x: z.number().default(0).describe("X position in graph — for add_input/add_output"),
+			y: z.number().default(0).describe("Y position in graph — for add_input/add_output"),
+			expression_name: z
+				.string()
+				.optional()
+				.describe("Expression name to delete — required for delete_expression"),
+			from_expression_name: z
+				.string()
+				.optional()
+				.describe("Source expression name — required for connect"),
+			from_output_name: z
+				.string()
+				.default("")
+				.describe("Source output pin name (empty for first/default output) — for connect"),
+			to_expression_name: z
+				.string()
+				.optional()
+				.describe("Target expression name — required for connect"),
+			to_input_name: z
+				.string()
+				.default("")
+				.describe("Target input pin name (empty for first/default input) — for connect"),
+		},
+		async ({
+			function_path,
+			operation,
+			name,
+			input_type,
+			preview_value,
+			bool_value,
+			x,
+			y,
+			expression_name,
+			from_expression_name,
+			from_output_name,
+			to_expression_name,
+			to_input_name,
+		}) => {
+			await manager.requireEditor();
+
+			// Typed input validation (per operation), enforced before touching the editor.
+			if (operation === "add_input") {
+				if (!name) {
+					return {
+						content: [
+							{ type: "text", text: JSON.stringify({ error: "add_input requires 'name'" }) },
+						],
+					};
+				}
+				if (!input_type) {
+					return {
+						content: [
+							{ type: "text", text: JSON.stringify({ error: "add_input requires 'input_type'" }) },
+						],
+					};
+				}
+				if (input_type === "StaticBool" && bool_value === undefined) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: JSON.stringify({
+									error: "add_input with input_type=StaticBool requires 'bool_value'",
+								}),
+							},
+						],
+					};
+				}
+			}
+			if (operation === "add_output" && !name) {
+				return {
+					content: [
+						{ type: "text", text: JSON.stringify({ error: "add_output requires 'name'" }) },
+					],
+				};
+			}
+			if (operation === "delete_expression" && !expression_name) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify({ error: "delete_expression requires 'expression_name'" }),
+						},
+					],
+				};
+			}
+			if (operation === "connect" && (!from_expression_name || !to_expression_name)) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify({
+								error: "connect requires 'from_expression_name' and 'to_expression_name'",
+							}),
+						},
+					],
+				};
+			}
+
+			const usePreview =
+				input_type &&
+				input_type !== "Texture2D" &&
+				input_type !== "TextureCube" &&
+				input_type !== "MaterialAttributes";
+			const pv =
+				input_type === "StaticBool"
+					? { x: bool_value ? 1 : 0, y: 0, z: 0, w: 1 }
+					: (preview_value ?? { x: 0, y: 0, z: 0, w: 1 });
+
+			const script = inlineScript(
+				`import unreal
+import json
+mel = unreal.MaterialEditingLibrary
+func = unreal.EditorAssetLibrary.load_asset('{{function_path}}')
+if not func or not isinstance(func, unreal.MaterialFunction):
+    print(json.dumps({"error": "MaterialFunction not found: {{function_path}}"}))
+else:
+    op = '{{operation}}'
+    if op == 'add_input':
+        expr = mel.create_material_expression(func, unreal.MaterialExpressionFunctionInput, {{x}}, {{y}})
+        if not expr:
+            print(json.dumps({"error": "Failed to create FunctionInput expression"}))
+        else:
+            warnings = []
+            expr.set_editor_property('InputName', '{{name}}')
+            input_type = getattr(unreal.FunctionInputType, 'FunctionInput_{{input_type}}', None)
+            if input_type is not None:
+                expr.set_editor_property('InputType', input_type)
+            else:
+                warnings.append('Unknown input_type: {{input_type}}')
+            if {{use_preview}}:
+                try:
+                    expr.set_editor_property('PreviewValue', unreal.Vector4({{pv_x}}, {{pv_y}}, {{pv_z}}, {{pv_w}}))
+                    expr.set_editor_property('bUsePreviewValueAsDefault', True)
+                except Exception as e:
+                    warnings.append('PreviewValue: ' + str(e))
+            print(json.dumps({"success": True, "expression": expr.get_name(), "warnings": warnings}))
+    elif op == 'add_output':
+        expr = mel.create_material_expression(func, unreal.MaterialExpressionFunctionOutput, {{x}}, {{y}})
+        if not expr:
+            print(json.dumps({"error": "Failed to create FunctionOutput expression"}))
+        else:
+            expr.set_editor_property('OutputName', '{{name}}')
+            print(json.dumps({"success": True, "expression": expr.get_name()}))
+    elif op == 'delete_expression':
+        expressions = mel.get_material_expressions(func)
+        for e in expressions:
+            if e.get_name() == '{{expression_name}}':
+                mel.delete_material_expression(func, e)
+                print(json.dumps({"success": True}))
+                break
+        else:
+            print(json.dumps({"error": "Expression not found: {{expression_name}}"}))
+    elif op == 'connect':
+        expressions = mel.get_material_expressions(func)
+        from_expr = None
+        to_expr = None
+        for e in expressions:
+            if e.get_name() == '{{from_expression_name}}':
+                from_expr = e
+            if e.get_name() == '{{to_expression_name}}':
+                to_expr = e
+        if from_expr and to_expr:
+            success = mel.connect_material_expressions(from_expr, '{{from_output_name}}', to_expr, '{{to_input_name}}')
+            print(json.dumps({"success": success}))
+        else:
+            print(json.dumps({"error": "Expression(s) not found", "available": [e.get_name() for e in expressions]}))
+    else:
+        print(json.dumps({"error": "Unknown operation: " + op}))`,
+				{
+					function_path,
+					operation,
+					name: name || "",
+					input_type: input_type || "",
+					use_preview: usePreview ? "True" : "False",
+					pv_x: pv.x,
+					pv_y: pv.y,
+					pv_z: pv.z,
+					pv_w: pv.w,
+					x,
+					y,
+					expression_name: expression_name || "",
+					from_expression_name: from_expression_name || "",
+					from_output_name,
+					to_expression_name: to_expression_name || "",
+					to_input_name,
+				},
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"delete_material_function",
+		"Delete a Material Function asset.",
+		{ function_path: z.string().describe("Material function asset path") },
+		{ destructiveHint: true },
+		async ({ function_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+if not unreal.EditorAssetLibrary.does_asset_exist('{{function_path}}'):
+    print(json.dumps({"error": "MaterialFunction not found: {{function_path}}"}))
+else:
+    success = unreal.EditorAssetLibrary.delete_asset('{{function_path}}')
+    print(json.dumps({"success": success}))`,
+				{ function_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"set_material_property",
+		"Set a top-level property on a master Material (not an expression node) — e.g. BlendMode, ShadingModel, TwoSided, DitheredLODTransition.",
+		{
+			material_path: z.string().describe("Material asset path"),
+			property_name: z
+				.string()
+				.describe("Property name, e.g. BlendMode, ShadingModel, TwoSided, bUsedWithSkeletalMesh"),
+			property_value: z
+				.string()
+				.describe(
+					"Property value — enum names (BLEND_Translucent, MSM_Unlit), True/False for bools, or plain strings",
+				),
+		},
+		async ({ material_path, property_name, property_value }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+mat = unreal.EditorAssetLibrary.load_asset('{{material_path}}')
+if not mat or not isinstance(mat, unreal.Material):
+    print(json.dumps({"error": "Material not found: {{material_path}}"}))
+else:
+    prop_name = '{{property_name}}'
+    raw_value = '{{property_value}}'
+
+    value = raw_value
+    if raw_value in ('True', 'False'):
+        value = raw_value == 'True'
+    else:
+        blend_enum = getattr(unreal.BlendMode, raw_value, None)
+        shading_enum = getattr(unreal.MaterialShadingModel, raw_value, None)
+        if blend_enum is not None:
+            value = blend_enum
+        elif shading_enum is not None:
+            value = shading_enum
+        else:
+            try:
+                value = float(raw_value) if '.' in raw_value else int(raw_value)
+            except ValueError:
+                value = raw_value
+
+    try:
+        mat.set_editor_property(prop_name, value)
+        unreal.MaterialEditingLibrary.recompile_material(mat)
+        unreal.EditorAssetLibrary.save_asset('{{material_path}}')
+        print(json.dumps({"success": True, "property": prop_name}))
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))`,
+				{ material_path, property_name, property_value },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"list_material_slots",
+		"List material slots on an actor's mesh components: slot index and the currently-assigned material.",
+		{ actor: z.string().describe("Actor name or label") },
+		{ readOnlyHint: true },
+		async ({ actor }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+target = None
+for a in actors:
+    if a.get_name() == '{{actor}}' or a.get_actor_label() == '{{actor}}':
+        target = a
+        break
+if not target:
+    print(json.dumps({"error": "Actor not found: {{actor}}"}))
+else:
+    comps = target.get_components_by_class(unreal.MeshComponent)
+    result = []
+    for comp in comps:
+        num_slots = comp.get_num_materials()
+        slots = []
+        for i in range(num_slots):
+            mat = comp.get_material(i)
+            slots.append({"slot": i, "material": mat.get_path_name() if mat else None})
+        result.append({"component": comp.get_name(), "slots": slots})
+    print(json.dumps({"success": True, "components": result}, indent=2))`,
+				{ actor },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"find_textures",
+		"Search a content directory for Texture2D assets by name substring.",
+		{
+			search_term: z.string().default("").describe("Substring to match in the texture name"),
+			directory: z.string().default("/Game").describe("Content directory path"),
+			max_results: z.number().int().min(1).max(500).default(50),
+		},
+		{ readOnlyHint: true },
+		async ({ search_term, directory, max_results }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+registry = unreal.AssetRegistryHelpers.get_asset_registry()
+assets = registry.get_assets_by_path('{{directory}}', True) or []
+search_term = '{{search_term}}'.lower()
+results = []
+for a in assets:
+    cls = str(a.asset_class_path.asset_name) if hasattr(a, 'asset_class_path') else str(a.asset_class)
+    if cls != 'Texture2D':
+        continue
+    name = str(a.asset_name)
+    if search_term and search_term not in name.lower():
+        continue
+    results.append({"name": name, "path": str(a.package_name) + '.' + name})
+    if len(results) >= {{max_results}}:
+        break
+print(json.dumps(results, indent=2))`,
+				{ search_term, directory, max_results },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"delete_material",
+		"Delete a master Material asset.",
+		{ material_path: z.string().describe("Material asset path") },
+		{ destructiveHint: true },
+		async ({ material_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+if not unreal.EditorAssetLibrary.does_asset_exist('{{material_path}}'):
+    print(json.dumps({"error": "Material not found: {{material_path}}"}))
+else:
+    success = unreal.EditorAssetLibrary.delete_asset('{{material_path}}')
+    print(json.dumps({"success": success}))`,
+				{ material_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"delete_material_instance",
+		"Delete a Material Instance asset.",
+		{ instance_path: z.string().describe("Material instance asset path") },
+		{ destructiveHint: true },
+		async ({ instance_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+if not unreal.EditorAssetLibrary.does_asset_exist('{{instance_path}}'):
+    print(json.dumps({"error": "Material instance not found: {{instance_path}}"}))
+else:
+    success = unreal.EditorAssetLibrary.delete_asset('{{instance_path}}')
+    print(json.dumps({"success": success}))`,
+				{ instance_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"update_material_instance",
+		"Batch-set scalar, vector, and/or texture parameters on a material instance in one call.",
+		{
+			instance_path: z.string().describe("Material instance asset path"),
+			scalars: z
+				.array(z.object({ name: z.string(), value: z.number() }))
+				.default([])
+				.describe("Scalar parameters to set"),
+			vectors: z
+				.array(
+					z.object({
+						name: z.string(),
+						r: z.number(),
+						g: z.number(),
+						b: z.number(),
+						a: z.number().default(1),
+					}),
+				)
+				.default([])
+				.describe("Vector (color) parameters to set"),
+			textures: z
+				.array(z.object({ name: z.string(), texture_path: z.string() }))
+				.default([])
+				.describe("Texture parameters to set"),
+		},
+		async ({ instance_path, scalars, vectors, textures }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+mel = unreal.MaterialEditingLibrary
+mi = unreal.EditorAssetLibrary.load_asset('{{instance_path}}')
+if not mi or not isinstance(mi, unreal.MaterialInstanceConstant):
+    print(json.dumps({"error": "Material instance not found: {{instance_path}}"}))
+else:
+    applied = []
+    warnings = []
+    for s in json.loads('{{scalars_json}}'):
+        try:
+            mel.set_material_instance_scalar_parameter_value(mi, s['name'], s['value'])
+            applied.append('scalar:' + s['name'])
+        except Exception as e:
+            warnings.append('scalar ' + s['name'] + ': ' + str(e))
+    for v in json.loads('{{vectors_json}}'):
+        try:
+            color = unreal.LinearColor(v['r'], v['g'], v['b'], v['a'])
+            mel.set_material_instance_vector_parameter_value(mi, v['name'], color)
+            applied.append('vector:' + v['name'])
+        except Exception as e:
+            warnings.append('vector ' + v['name'] + ': ' + str(e))
+    for t in json.loads('{{textures_json}}'):
+        texture = unreal.EditorAssetLibrary.load_asset(t['texture_path'])
+        if not texture:
+            warnings.append('texture ' + t['name'] + ': not found at ' + t['texture_path'])
+            continue
+        try:
+            mel.set_material_instance_texture_parameter_value(mi, t['name'], texture)
+            applied.append('texture:' + t['name'])
+        except Exception as e:
+            warnings.append('texture ' + t['name'] + ': ' + str(e))
+    print(json.dumps({"success": True, "applied": applied, "warnings": warnings}))`,
+				{
+					instance_path,
+					scalars_json: JSON.stringify(scalars),
+					vectors_json: JSON.stringify(vectors),
+					textures_json: JSON.stringify(textures),
+				},
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
 }

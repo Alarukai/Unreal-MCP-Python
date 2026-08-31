@@ -1,3 +1,5 @@
+import type { Socket } from "node:dgram";
+import { networkInterfaces } from "node:os";
 import { RemoteExecution, RemoteExecutionConfig } from "unreal-remote-execution";
 import { PythonExecutionError, TimeoutError, UnrealMcpError } from "../utils/errors.js";
 
@@ -7,6 +9,54 @@ export interface PythonExecConfig {
 	timeout: number;
 	/** Bind address for the UDP multicast discovery socket. Defaults to 127.0.0.1. */
 	multicastBindAddress?: string;
+	/**
+	 * Outbound interface for multicast discovery pings, as an IPv4 address.
+	 * Only used when multicastBindAddress has been widened past loopback — see
+	 * resolveMulticastInterface() for why. Auto-detected if unset.
+	 */
+	multicastInterface?: string;
+}
+
+/** True for 127.0.0.0/8 and ::1 — the addresses our own loopback-only default binds to. */
+export function isLoopbackAddress(addr: string): boolean {
+	return addr === "::1" || addr.startsWith("127.");
+}
+
+/**
+ * Pick the outbound interface for multicast discovery pings.
+ *
+ * `unreal-remote-execution` feeds a single "multicast bind address" value to
+ * three different roles: the socket bind address, the multicast group
+ * membership interface, AND `setMulticastInterface()` (which selects which
+ * adapter outgoing multicast actually leaves on). Binding to a specific
+ * address is required to receive multicast at all on some platforms, but as
+ * an *outbound* interface selector that same value leaves the OS to guess —
+ * and on machines with extra adapters (Bluetooth PAN, Wi-Fi Direct, an
+ * unplugged NIC, WSL, Hyper-V, VPNs) Windows routinely picks a link-local
+ * 169.254.* adapter. The ping then leaves on an interface the editor is not
+ * listening on and discovery fails with "Could not find a node within the
+ * given time" — even though the editor is right there and answering pings
+ * sent on the correct adapter.
+ *
+ * Only called when the configured bind address is non-loopback (0.0.0.0 or a
+ * specific host/LAN address) — i.e. only once the user has already opted
+ * into widening multicast beyond this project's loopback-only default, which
+ * is exactly the scenario this multi-adapter problem shows up in.
+ *
+ * Returns an explicit override if configured, otherwise the first real
+ * external IPv4, skipping APIPA addresses.
+ */
+export function resolveMulticastInterface(explicitOverride?: string): string | undefined {
+	if (explicitOverride) return explicitOverride;
+
+	for (const addresses of Object.values(networkInterfaces())) {
+		for (const addr of addresses ?? []) {
+			if (addr.family === "IPv4" && !addr.internal && !addr.address.startsWith("169.254.")) {
+				return addr.address;
+			}
+		}
+	}
+	return undefined;
 }
 
 /**
@@ -22,16 +72,20 @@ export interface PythonExecConfig {
 export class PythonExecClient {
 	private remote: RemoteExecution;
 	private timeout: number;
+	private bindAddress: string;
+	private explicitInterface?: string;
 	private _started = false;
 	private _commandReady = false;
 	private _discoveryFailed = false;
 	private _lastDiscoveryAttempt = 0;
 
 	constructor(config: PythonExecConfig) {
+		this.bindAddress = config.multicastBindAddress || "127.0.0.1";
+		this.explicitInterface = config.multicastInterface;
 		const remoteConfig = new RemoteExecutionConfig(
 			0, // multicastTTL: local host only
 			["239.0.0.1", 6766], // multicastGroupEndpoint (UE default)
-			config.multicastBindAddress || "127.0.0.1", // multicastBindAddress — loopback-only by default; only widen if UE and this process are split across network namespaces on the same host
+			this.bindAddress, // multicastBindAddress — loopback-only by default; only widen if UE and this process are split across network namespaces on the same host
 			[config.host, config.port], // commandEndpoint
 		);
 		this.remote = new RemoteExecution(remoteConfig);
@@ -70,6 +124,26 @@ export class PythonExecClient {
 			await this.remote.start();
 			this._started = true;
 
+			// Only force the outbound interface once the user has already widened
+			// the bind past loopback — see resolveMulticastInterface()'s docstring
+			// for why this must not run against our loopback-only default.
+			if (!isLoopbackAddress(this.bindAddress)) {
+				this.applyMulticastInterface();
+			}
+
+			// `start()` only opens the broadcast socket — it does not emit any
+			// pings. The library registers discovered nodes exclusively while it
+			// is actively searching (its updateRemoteNode() only adds a new entry
+			// `else if (this.isSearchingForNodes())`), so without this call
+			// remoteNodes stays empty forever and every discovery attempt times
+			// out, regardless of network configuration.
+			//
+			// Left running for the client's whole lifetime (~1 ping/sec) rather
+			// than stopped once a node is found: stopSearchingForNodes() clears
+			// the library's internal node list as a side effect, which would
+			// immediately empty remoteNodes again and break ensureCommandConnection().
+			this.remote.startSearchingForNodes();
+
 			// Wait for UE node discovery via UDP multicast
 			await new Promise<void>((resolve) => {
 				const maxWait = 5000;
@@ -91,6 +165,38 @@ export class PythonExecClient {
 			throw new UnrealMcpError(
 				`Failed to start Python Remote Execution: ${err}`,
 				"PYTHON_CONNECTION_FAILED",
+			);
+		}
+	}
+
+	/**
+	 * Point outbound multicast at a real interface once the broadcast socket is
+	 * up. Only called when the configured bind address is non-loopback (see
+	 * ensureStarted()) — never touches our safe default.
+	 *
+	 * The library exposes no option for this, so the socket is reached through
+	 * its private field. Best-effort: discovery may still work without this on
+	 * single-adapter hosts, so this must never throw. Only the *outbound*
+	 * interface is changed — bind address and group membership stay as
+	 * configured, since moving group membership off 0.0.0.0 has been observed
+	 * to break the receive path entirely (the reply is lost even though the
+	 * ping goes out correctly).
+	 */
+	private applyMulticastInterface(): void {
+		const iface = resolveMulticastInterface(this.explicitInterface);
+		if (!iface) return;
+
+		const socket = (
+			this.remote as unknown as {
+				broadcastConnection?: { broadcastSocket?: Socket };
+			}
+		).broadcastConnection?.broadcastSocket;
+
+		try {
+			socket?.setMulticastInterface(iface);
+		} catch (error) {
+			console.error(
+				`[unreal-mcp] Could not set multicast interface to ${iface}: ${error}. Discovery may fail if this host has multiple network adapters.`,
 			);
 		}
 	}

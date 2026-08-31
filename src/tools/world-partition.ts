@@ -85,6 +85,29 @@ else:
 	});
 
 	server.tool(
+		"get_world_partition_info",
+		"Get World Partition status for the current level: whether it's enabled, and the runtime hash name if so.",
+		{},
+		{ readOnlyHint: true },
+		async () => {
+			await manager.requireEditor();
+			const script = `import unreal
+import json
+world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+if not world:
+    print(json.dumps({"error": "No editor world"}))
+else:
+    wp = world.get_world_partition()
+    result = {"success": True, "world_partition_enabled": wp is not None}
+    if wp:
+        result["runtime_hash"] = wp.get_name()
+    print(json.dumps(result, indent=2))`;
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
 		"set_streaming_source",
 		"Configure a streaming source component on an actor for World Partition.",
 		{
