@@ -82,15 +82,24 @@ hit = unreal.SystemLibrary.line_trace_single(
 if not hit:
     print(json.dumps({"success": True, "hit": False, "trace_start": {"x": start.x, "y": start.y, "z": start.z}, "trace_end": {"x": end.x, "y": end.y, "z": end.z}}))
 else:
+    # HitResult struct fields are protected in UE's Python bindings (can't be
+    # read as attributes or via get_editor_property); to_tuple() is the only
+    # accessor. Layout matches FHitResult's UPROPERTY order:
+    # 0 blocking_hit, 1 initial_overlap, 2 time, 3 distance, 4 location,
+    # 5 impact_point, 6 normal, 7 impact_normal, 8 phys_mat, 9 hit_actor,
+    # 10 hit_component, 11 hit_bone, 12 bone, 13 hit_item, 14 element_index,
+    # 15 face_index, 16 trace_start, 17 trace_end
+    ht = hit.to_tuple()
+    hit_loc, hit_normal, hit_dist, hit_actor, hit_comp = ht[4], ht[6], ht[3], ht[9], ht[10]
     result = {"success": True, "hit": True}
-    result["hit_location"] = {"x": hit.location.x, "y": hit.location.y, "z": hit.location.z}
-    result["hit_normal"] = {"x": hit.normal.x, "y": hit.normal.y, "z": hit.normal.z}
-    result["hit_distance"] = hit.distance
-    if hit.hit_actor:
-        result["hit_actor"] = hit.hit_actor.get_actor_label()
-        result["hit_actor_class"] = hit.hit_actor.get_class().get_name()
-    if hit.hit_component:
-        result["hit_component"] = hit.hit_component.get_name()
+    result["hit_location"] = {"x": hit_loc.x, "y": hit_loc.y, "z": hit_loc.z}
+    result["hit_normal"] = {"x": hit_normal.x, "y": hit_normal.y, "z": hit_normal.z}
+    result["hit_distance"] = hit_dist
+    if hit_actor:
+        result["hit_actor"] = hit_actor.get_actor_label()
+        result["hit_actor_class"] = hit_actor.get_class().get_name()
+    if hit_comp:
+        result["hit_component"] = hit_comp.get_name()
     print(json.dumps(result, indent=2))`,
 				{
 					sx: start.x,
@@ -146,13 +155,15 @@ else:
     extent_v = unreal.Vector({{ex}}, {{ey}}, {{ez}})
 
 ignore = [test_actor] if test_actor else []
-overlapping = []
-hit = unreal.SystemLibrary.box_overlap_actors(
+# UE 5.x Python binding: box_overlap_actors returns the out-actor Array
+# directly (6 params, no trailing out-array arg — passing one raises
+# "takes at most 6 arguments").
+overlapping = unreal.SystemLibrary.box_overlap_actors(
     unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world(),
     center_v, extent_v,
     [unreal.ObjectTypeQuery.OBJECT_TYPE_QUERY1, unreal.ObjectTypeQuery.OBJECT_TYPE_QUERY2],
-    None, ignore, overlapping
-)
+    None, ignore
+) or []
 seen = set()
 results = []
 for a in overlapping:
@@ -216,7 +227,8 @@ else:
     if not hit:
         print(json.dumps({"error": "No ground found within trace_height of the actor's position"}))
     else:
-        new_loc = unreal.Vector(hit.location.x, hit.location.y, hit.location.z)
+        hit_loc = hit.to_tuple()[4]  # FHitResult.Location — struct fields are protected in Python
+        new_loc = unreal.Vector(hit_loc.x, hit_loc.y, hit_loc.z)
         target.set_actor_location(new_loc, False, False)
         print(json.dumps({"success": True, "actor": target.get_actor_label(), "location": {"x": new_loc.x, "y": new_loc.y, "z": new_loc.z}}))`,
 				{ actor, trace_height, trace_type: TRACE_TYPE_MAP[trace_channel] },
@@ -323,14 +335,15 @@ for a in actors:
     if isinstance(a, unreal.Brush) or a.is_hidden_ed():
         continue
     origin, extent = a.get_actor_bounds(False)
-    if extent.size() < 0.01:
+    extent_len = extent.length()  # unreal.Vector has no .size() in UE 5.x Python
+    if extent_len < 0.01:
         continue
     a_min = unreal.Vector(origin.x - extent.x, origin.y - extent.y, origin.z - extent.z)
     a_max = unreal.Vector(origin.x + extent.x, origin.y + extent.y, origin.z + extent.z)
     scene_min = a_min if scene_min is None else unreal.Vector(min(scene_min.x, a_min.x), min(scene_min.y, a_min.y), min(scene_min.z, a_min.z))
     scene_max = a_max if scene_max is None else unreal.Vector(max(scene_max.x, a_max.x), max(scene_max.y, a_max.y), max(scene_max.z, a_max.z))
-    smallest_extent = extent.size() if smallest_extent is None else min(smallest_extent, extent.size())
-    largest_extent = extent.size() if largest_extent is None else max(largest_extent, extent.size())
+    smallest_extent = extent_len if smallest_extent is None else min(smallest_extent, extent_len)
+    largest_extent = extent_len if largest_extent is None else max(largest_extent, extent_len)
     bounded.append({"actor": a, "location": a.get_actor_location(), "extent": extent})
 
 if scene_min is None:
@@ -395,7 +408,7 @@ for ox, oy in trace_offsets:
         False, [], unreal.DrawDebugTrace.NONE, False
     )
     if hit:
-        ground_sum += hit.location.z
+        ground_sum += hit.to_tuple()[4].z  # FHitResult.Location
         ground_hits += 1
 
 cell_size = radius * 0.5
