@@ -17,6 +17,7 @@
     "build": "tsc",
     "start": "node dist/bin.js",
     "test": "vitest",
+    "verify-tools": "tsx src/tools/tool-verification.verify.ts",
     "lint": "biome check src/",
     "fmt": "biome format --write src/"
   },

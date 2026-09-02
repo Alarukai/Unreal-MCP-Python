@@ -668,3 +668,176 @@ those need a live editor.
 run` 104/104. Each fixed tool was re-invoked against the same live editor
 until it returned a well-formed result; test actors and the scratch
 `/Game/GTest` Control Rig folder were deleted afterwards.
+
+## Part H — Committed analyzer, PCG completion, plugin-bridge auth, StaticMeshTools (2026-09-02)
+
+Response to a four-part status/gap request: "check if we have tools for pcg,
+tools for all features for unreal, analyzer for the tools, and communication
+security." An audit across all four areas found that the biggest gap wasn't
+any single missing tool — it was that the verification methodology itself
+(Parts D–G) had never been committed to the repo, only re-run by hand each
+wave from a throwaway scratchpad script.
+
+### H1. Committed tool analyzer (`npm run verify-tools`)
+New `src/tools/tool-verification-harness.ts` (shared infra),
+`src/tools/index.test.ts` (fast half, in `npm test`), and
+`src/tools/tool-verification.verify.ts` (slow half, `npm run verify-tools`).
+Boots a real `McpServer` with every module registered against a stubbed
+`ConnectionManager` (no real sockets — `ConnectionManager.initialize()` is
+never called), connects a real MCP `Client` over an in-memory transport pair,
+synthesizes plausible arguments per tool from its raw Zod shape (walking
+`ZodOptional`/`ZodDefault`/`ZodObject`/`ZodArray`/`ZodEnum`/etc.), invokes
+every tool through the real `tools/call` path, captures every generated
+Python script, and batch-checks them with one `python3 -c "ast.parse(...)"`
+subprocess call. `index.test.ts` additionally asserts no duplicate tool names
+and that `tools/list` matches the registry — this is exactly the check that
+caught the historical `undo`/`redo` collision, now a real, always-on test
+instead of a manual stdio smoke test.
+
+**This immediately proved its worth before a single new tool was added to
+it.** While reading `actor.ts` for conventions (see H4), a live,
+currently-shipping bug was found in `spawn_actor` and `set_actor_transform`:
+both passed a raw JS boolean (`do_scale: !!scale`, `do_loc: !!location`,
+etc.) into `inlineScript`'s vars, which stringifies via `String(value)` —
+producing the bare Python identifiers `true`/`false` instead of `True`/
+`False`. Since this assignment (`do_scale = {{do_scale}}`) executes
+unconditionally on every successful spawn/transform, **both tools crashed
+with `NameError` on every single successful invocation** — the actor still
+got spawned/transformed (the side effect happens before the crash), but the
+tool always returned a Python exception instead of the success JSON. Running
+the new `verify-tools` against the pre-fix code confirmed exactly the
+predicted blind spot: `ast.parse` reported all scripts syntactically valid
+(`true`/`false` are valid — if undefined — Python identifiers), same as
+every prior wave. Only reading a generated script by eye caught it, once
+again validating the standing "always read at least one script manually"
+rule from Part E3. Fixed by converting all four sites to
+`value ? "True" : "False"` (`src/tools/actor.ts`).
+
+A broader sweep (`grep -rn ": !!" src/tools/*.ts`, plus a scripted check for
+any `z.boolean()` field name appearing bare — unconverted — inside a vars
+object) found no further instances of this specific pattern anywhere else in
+the codebase.
+
+### H2. PCG: the 4 missing tools, from a 9-tool reference
+`MCPPCGTools.cpp` (UnrealMCPServer) has 9 tools; this project had 5
+(`create_pcg_graph`, `find_pcg_graphs`/their `list_pcg_graphs`,
+`spawn_pcg_volume`/their `spawn_pcg_actor`, `generate_pcg`/their
+`execute_pcg`, `add_pcg_node`). The 4 missing — `get_pcg_info`,
+`get_pcg_graph_nodes`, `connect_pcg_nodes`, `set_pcg_static_mesh_spawner_meshes`
+— were read in full and added to `pcg.ts`:
+- **`get_pcg_info`** — Tier 1, high confidence: plain `UPCGComponent`
+  reflection (graph, seed, generation trigger, actor transform), the same
+  pattern used successfully throughout this codebase.
+- **`get_pcg_graph_nodes`** — Tier 1, probable but **not yet live-verified**.
+  The reference reads node position via raw C++ `FindFProperty` reflection on
+  `PositionX`/`PositionY`, which is a different access path than a normal
+  Python-exposed property; every field is wrapped individually so a bad
+  guess degrades to `null` + a `warnings` entry rather than failing the tool.
+- **`connect_pcg_nodes`** — flagged **Tier 2-probable**: the reference uses
+  `UPCGPin::AddEdgeTo()`, a deep PCG-graph-editor API in the same risk class
+  as the Blueprint graph editing this project already treats as Tier 2.
+  Implemented anyway (best-effort, heavily defensive) since the cost of being
+  wrong is just a clear error message, not a false success — explicitly
+  documented in the tool description as unverified.
+- **`set_pcg_static_mesh_spawner_meshes`** — least confident of the four: the
+  reference writes directly into a `TArray<FPCGMeshSelectorWeightedEntry>`
+  struct array. Implemented as a best-effort `get_editor_property`/
+  `set_editor_property` reconstruction, wrapped so a struct-layout mismatch
+  returns an explicit error rather than a silent no-op.
+
+All four were run through `verify-tools` (ast.parse-clean) and manually read
+by eye. None have been checked against a live editor yet — same caveat as
+every other "NOT YET VERIFIED" tool in this file until someone runs a Part-G
+style live session against them.
+
+### H3. Communication security: what's real, what isn't
+A full audit of all 3 network transports found none authenticated (none had
+before this wave, and this wave did not change that assessment for two of
+the three — see below). The honest split:
+- **RemoteControlClient (HTTP, 30010)** — UE's own Remote Control plugin has
+  no auth surface to check a token against. Adding one client-side would be
+  validated by nothing. **No code change** — documented as a trust boundary
+  in README instead (loopback-only is the actual protection, same as
+  Python Remote Execution).
+- **PythonExecClient** — the "trust whichever node answers the discovery
+  multicast first" design is Epic's own protocol; there's no shared secret
+  to add on our side without also owning UE's C++ implementation. **No code
+  change.** (Already extensively documented in README from a prior wave.)
+- **PluginBridgeClient (TCP 55557, our own protocol)** — the one channel
+  where both ends are ours. Added an opt-in pre-shared-key handshake:
+  `pluginBridgeSecret` config field (CLI `--plugin-secret`, env
+  `UNREAL_MCP_PLUGIN_SECRET`, following the existing 3-layer config
+  pattern), sent as an `authenticate` command in `negotiateCapabilities()`
+  right after connecting, before capability negotiation. A new
+  `PluginAuthenticationError` (in `src/utils/errors.ts`, matching
+  `PluginNotAvailableError`'s style) fails the connection closed — thrown
+  from `ensureConnected()`, it propagates the same way any other connection
+  failure does, so `isAvailable()` just reads the bridge as "not connected"
+  rather than silently falling through to an unauthenticated session.
+  Zero-config behavior is unchanged (unset `secret` = no `authenticate` call
+  at all). **Caveat**: `plugin/UnrealMCPBridge/` (the C++ side) does not
+  exist in this repo yet — this is only the TypeScript half of a two-sided
+  feature, documented as such in both the code comment and README rather
+  than implied as complete. New tests in
+  `src/transports/plugin-bridge.test.ts` (a fake length-prefixed TCP server)
+  cover all three cases: no secret configured, secret accepted, secret
+  rejected (fails closed).
+
+### H4. First E4-backlog wave: StaticMeshTools
+Per the Part E4 backlog's own confidence ranking, picked the highest-
+confidence, smallest-scope untriaged domain to prove the new analyzer
+against a real new wave. `MCPStaticMeshTools.cpp` has 7 tools;
+`get_mesh_complexity_report` was already ported in Part F. Of the remaining
+6, `configure_mesh_lod` was skipped as redundant with the existing
+`generate_lods` (`editor-utils.ts`, from an earlier wave). The other 5 were
+added to `editor-utils.ts`:
+- **`set_static_mesh`** — Tier 1, high confidence: `StaticMeshComponent
+  .set_static_mesh()` is a *confirmed-working* method per Part G's live
+  testing (the same session that found `get_static_mesh()` does *not* exist
+  in UE 5.6 — `set_static_mesh()` was the one proven to work).
+- **`get_static_mesh_info`** — Tier 1, high confidence for the core fields
+  (mirrors `get_mesh_complexity_report`'s already-used `get_num_lods`/
+  `get_num_triangles`/`get_num_vertices`/`get_bounds` calls); the per-slot
+  material name/path reflection is new and wrapped defensively per-field.
+- **`set_mesh_material_slots`** — Tier 1, high confidence:
+  `component.set_material(i, mat)` is an established pattern already in
+  production use (`material.ts`'s `apply_material`).
+- **`create_static_mesh_actor`** — Tier 1, high confidence: composes
+  `spawn_actor_from_class(unreal.StaticMeshActor, ...)` +
+  `actor.static_mesh_component.set_static_mesh(mesh)`, the exact same
+  two-call pattern already used and presumably working in `level.ts`'s ring
+  macro (`spawn_actor_from_class(unreal.StaticMeshActor, loc)` +
+  `actor.static_mesh_component.set_static_mesh(mesh)`).
+- **`enable_nanite`** — explicitly marked **NOT YET VERIFIED**: writes
+  `mesh.nanite_settings.enabled` via `get_editor_property`/
+  `set_editor_property` round-trip, mirroring (not independently confirming)
+  `get_mesh_complexity_report`'s own unverified read of the same struct.
+  Wrapped in try/except with a clear error message rather than a false
+  success if the struct layout doesn't match.
+
+### H5. Verification
+`npm run build`/`lint` clean throughout. `npx vitest run`: 109/109 (104
+baseline + 2 from `index.test.ts` + 3 from `plugin-bridge.test.ts`).
+`npm run verify-tools`: 258 tools invoked, 274 generated scripts, all
+`ast.parse`-clean, run twice more after the PCG and StaticMeshTools
+additions. Every newly-generated script for this wave's tools (PCG's four,
+the two actor.ts bug-fix sites, and the five StaticMeshTools additions) was
+also read by eye — this is what caught H1's `spawn_actor`/
+`set_actor_transform` bug, which the automated ast.parse pass could not.
+README.md/CLAUDE.md updated to 258 tools / 31 subsystems.
+
+### H6. Still open
+- `get_pcg_graph_nodes`, `connect_pcg_nodes`,
+  `set_pcg_static_mesh_spawner_meshes`, and `enable_nanite` need a live-editor
+  session (Part-G style) to confirm or fix, same as anything else marked
+  "NOT YET VERIFIED" in this file.
+- The plugin-bridge secret has no C++-side implementation yet — needs
+  `plugin/UnrealMCPBridge/` to exist and implement matching `authenticate`
+  handling before it does anything.
+- The rest of the Part E4 backlog (Blueprint 51, Widget 15, AnimGraph 14,
+  Actor 14, Sequencer 12, Physics 9, GAS/AI 8+8, AssetManagement 7,
+  MetaSound 6, GameplayTags 3, ...) remains untriaged beyond StaticMeshTools.
+  Per-domain priority order recorded for whoever picks this up next:
+  AssetManagementTools → GameplayTagTools → MetaSoundTools, then the
+  "likely Tier 2" domains (Blueprint, AnimGraph graph-editing) only if there's
+  a specific reason to re-check a prior Tier-2 call.

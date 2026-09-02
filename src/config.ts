@@ -54,6 +54,9 @@ function loadEnvVars(): Partial<UnrealMcpConfig> {
 	if (process.env.UNREAL_MCP_PYTHON_PORT) {
 		config.pythonExecPort = Number.parseInt(process.env.UNREAL_MCP_PYTHON_PORT, 10);
 	}
+	if (process.env.UNREAL_MCP_PLUGIN_SECRET) {
+		config.pluginBridgeSecret = process.env.UNREAL_MCP_PLUGIN_SECRET;
+	}
 	if (process.env.UNREAL_MCP_MULTICAST_BIND) {
 		config.multicastBindAddress = process.env.UNREAL_MCP_MULTICAST_BIND;
 	}
@@ -99,6 +102,10 @@ export function parseCliArgs(argv: string[]): Partial<UnrealMcpConfig> {
 				break;
 			case "--plugin-port":
 				config.pluginBridgePort = Number.parseInt(next, 10);
+				i++;
+				break;
+			case "--plugin-secret":
+				config.pluginBridgeSecret = next;
 				i++;
 				break;
 			case "--multicast-bind":

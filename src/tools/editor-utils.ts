@@ -227,6 +227,289 @@ else:
 	);
 
 	server.tool(
+		"set_static_mesh",
+		"Set the static mesh asset on an actor's StaticMeshComponent. Works on any actor with a StaticMeshComponent, not just StaticMeshActor.",
+		{
+			actor: z.string().describe("Actor name or label"),
+			mesh_path: z.string().describe("Content path of the static mesh asset"),
+		},
+		async ({ actor, mesh_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+target = None
+for a in actors:
+    if a.get_name() == '{{actor}}' or a.get_actor_label() == '{{actor}}':
+        target = a
+        break
+if not target:
+    print(json.dumps({"error": "Actor not found: {{actor}}"}))
+else:
+    comp = target.get_component_by_class(unreal.StaticMeshComponent)
+    if not comp:
+        print(json.dumps({"error": "Actor '{{actor}}' has no StaticMeshComponent"}))
+    else:
+        mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
+        if not mesh:
+            print(json.dumps({"error": "Static mesh not found: {{mesh_path}}"}))
+        else:
+            comp.set_static_mesh(mesh)
+            print(json.dumps({"success": True, "actor": target.get_actor_label(), "mesh": mesh.get_name()}))`,
+				{ actor, mesh_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"get_static_mesh_info",
+		"Get detailed information about a static mesh asset: vertex/triangle count, bounds, LOD count, material slots (name + assigned material), and collision presence.",
+		{ mesh_path: z.string().describe("Content path of the static mesh asset") },
+		{ readOnlyHint: true },
+		async ({ mesh_path }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
+if not mesh:
+    print(json.dumps({"error": "Static mesh not found: {{mesh_path}}"}))
+else:
+    warnings = []
+    result = {"name": mesh.get_name(), "path": '{{mesh_path}}'}
+
+    try:
+        result["num_lods"] = mesh.get_num_lods()
+    except Exception as e:
+        warnings.append('num_lods: ' + str(e))
+
+    try:
+        result["vertex_count"] = mesh.get_num_vertices(0)
+        result["triangle_count"] = mesh.get_num_triangles(0)
+    except Exception as e:
+        warnings.append('vertex/triangle count: ' + str(e))
+
+    try:
+        bounds = mesh.get_bounds()
+        result["bounds"] = {
+            "origin": {"x": bounds.origin.x, "y": bounds.origin.y, "z": bounds.origin.z},
+            "extent": {"x": bounds.box_extent.x, "y": bounds.box_extent.y, "z": bounds.box_extent.z},
+            "sphere_radius": bounds.sphere_radius,
+        }
+    except Exception as e:
+        warnings.append('bounds: ' + str(e))
+
+    slots = []
+    try:
+        materials = mesh.get_editor_property('static_materials')
+        for i, m in enumerate(materials):
+            slot_name = None
+            try:
+                slot_name = str(m.get_editor_property('material_slot_name'))
+            except Exception:
+                pass
+            mat_path = None
+            try:
+                mat_iface = m.get_editor_property('material_interface')
+                mat_path = mat_iface.get_path_name() if mat_iface else None
+            except Exception:
+                pass
+            slots.append({"index": i, "slot_name": slot_name, "material": mat_path})
+    except Exception as e:
+        warnings.append('material_slots: ' + str(e))
+    result["material_slots"] = slots
+
+    try:
+        result["has_collision"] = mesh.get_editor_property('body_setup') is not None
+    except Exception as e:
+        warnings.append('collision: ' + str(e))
+
+    if warnings:
+        result["warnings"] = warnings
+    print(json.dumps(result, indent=2))`,
+				{ mesh_path },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"set_mesh_material_slots",
+		"Batch-assign materials to an actor's static mesh slots by index. Provide an array of material paths matching slot order; use an empty string to skip a slot.",
+		{
+			actor: z.string().describe("Actor name or label with a StaticMeshComponent"),
+			materials: z
+				.array(z.string())
+				.min(1)
+				.describe("Material paths, one per slot index; empty string skips that slot"),
+		},
+		async ({ actor, materials }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+target = None
+for a in actors:
+    if a.get_name() == '{{actor}}' or a.get_actor_label() == '{{actor}}':
+        target = a
+        break
+if not target:
+    print(json.dumps({"error": "Actor not found: {{actor}}"}))
+else:
+    comp = target.get_component_by_class(unreal.StaticMeshComponent)
+    if not comp:
+        print(json.dumps({"error": "Actor '{{actor}}' has no StaticMeshComponent"}))
+    else:
+        material_paths = json.loads('{{materials_json}}')
+        assigned = 0
+        warnings = []
+        for i, path in enumerate(material_paths):
+            if not path:
+                continue
+            mat = unreal.EditorAssetLibrary.load_asset(path)
+            if not mat:
+                warnings.append(f"slot {i}: material not found: {path}")
+                continue
+            comp.set_material(i, mat)
+            assigned += 1
+        result = {
+            "success": True,
+            "actor": target.get_actor_label(),
+            "assigned": assigned,
+            "slots_provided": len(material_paths),
+        }
+        if warnings:
+            result["warnings"] = warnings
+        print(json.dumps(result, indent=2))`,
+				{ actor, materials_json: JSON.stringify(materials) },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"create_static_mesh_actor",
+		"Convenience tool: spawn a StaticMeshActor, set its mesh, and optionally assign one material to every slot — all in one call.",
+		{
+			mesh_path: z.string().describe("Content path of the static mesh asset"),
+			material_path: z.string().optional().describe("Material to assign to every slot"),
+			location: z
+				.object({ x: z.number(), y: z.number(), z: z.number() })
+				.default({ x: 0, y: 0, z: 0 }),
+			rotation: z
+				.object({ pitch: z.number(), yaw: z.number(), roll: z.number() })
+				.default({ pitch: 0, yaw: 0, roll: 0 }),
+			scale: z
+				.object({ x: z.number(), y: z.number(), z: z.number() })
+				.default({ x: 1, y: 1, z: 1 }),
+			label: z.string().optional().describe("Actor label in the scene outliner"),
+			folder: z.string().optional().describe("Folder path in the scene outliner"),
+		},
+		async ({ mesh_path, material_path, location, rotation, scale, label, folder }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
+if not mesh:
+    print(json.dumps({"error": "Static mesh not found: {{mesh_path}}"}))
+else:
+    loc = unreal.Vector({{x}}, {{y}}, {{z}})
+    rot = unreal.Rotator({{pitch}}, {{yaw}}, {{roll}})
+    subsys = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    actor = subsys.spawn_actor_from_class(unreal.StaticMeshActor, loc, rot)
+    if not actor:
+        print(json.dumps({"error": "Failed to spawn StaticMeshActor"}))
+    else:
+        actor.set_actor_scale3d(unreal.Vector({{sx}}, {{sy}}, {{sz}}))
+        warnings = []
+        actor.static_mesh_component.set_static_mesh(mesh)
+
+        material_path = '{{material_path}}'
+        if material_path:
+            mat = unreal.EditorAssetLibrary.load_asset(material_path)
+            if mat:
+                for i in range(actor.static_mesh_component.get_num_materials()):
+                    actor.static_mesh_component.set_material(i, mat)
+            else:
+                warnings.append('Material not found: ' + material_path)
+
+        label = '{{label}}'
+        if label:
+            actor.set_actor_label(label)
+
+        folder = '{{folder}}'
+        if folder:
+            actor.set_folder_path(folder)
+
+        result = {
+            "success": True,
+            "actor": actor.get_actor_label(),
+            "mesh": mesh.get_name(),
+            "location": {"x": loc.x, "y": loc.y, "z": loc.z},
+        }
+        if warnings:
+            result["warnings"] = warnings
+        print(json.dumps(result, indent=2))`,
+				{
+					mesh_path,
+					material_path: material_path || "",
+					x: location.x,
+					y: location.y,
+					z: location.z,
+					pitch: rotation.pitch,
+					yaw: rotation.yaw,
+					roll: rotation.roll,
+					sx: scale.x,
+					sy: scale.y,
+					sz: scale.z,
+					label: label || "",
+					folder: folder || "",
+				},
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
+		"enable_nanite",
+		"Enable or disable Nanite virtualized geometry on a static mesh asset. NOT YET VERIFIED against a live editor — the Nanite settings struct write is mirrored from this project's own (also unverified) get_mesh_complexity_report read path; returns a clear error rather than a false success if it doesn't take.",
+		{
+			mesh_path: z.string().describe("Content path to the StaticMesh asset"),
+			enabled: z.boolean().default(true).describe("Enable (true) or disable (false) Nanite"),
+		},
+		async ({ mesh_path, enabled }) => {
+			await manager.requireEditor();
+			const script = inlineScript(
+				`import unreal
+import json
+mesh = unreal.EditorAssetLibrary.load_asset('{{mesh_path}}')
+if not mesh:
+    print(json.dumps({"error": "StaticMesh not found: {{mesh_path}}"}))
+else:
+    try:
+        settings = mesh.get_editor_property('nanite_settings')
+        settings.set_editor_property('enabled', {{enabled}})
+        mesh.set_editor_property('nanite_settings', settings)
+        unreal.EditorAssetLibrary.save_asset('{{mesh_path}}')
+        print(json.dumps({"success": True, "mesh": mesh.get_name(), "nanite_enabled": {{enabled}}}))
+    except Exception as e:
+        print(json.dumps({"error": "Could not set nanite_settings — this UE version's Python bindings may expose it differently: " + str(e)}))`,
+				{ mesh_path, enabled: enabled ? "True" : "False" },
+			);
+			const result = await manager.runPython(script);
+			return { content: [{ type: "text", text: result }] };
+		},
+	);
+
+	server.tool(
 		"undo",
 		"Undo the last N editor transactions.",
 		{

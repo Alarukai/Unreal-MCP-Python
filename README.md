@@ -1,6 +1,6 @@
 # unreal-mcp
 
-The most comprehensive MCP server for Unreal Engine — **249 tools** across **31 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
+The most comprehensive MCP server for Unreal Engine — **258 tools** across **31 subsystems**, with **4 transport layers** and **no mandatory C++ plugin**.
 
 > **Beta** — This project is under active development and testing. Tools are being validated against UE 5.6. Some tools may not work as expected. Bug reports and contributions are welcome.
 
@@ -8,7 +8,7 @@ The most comprehensive MCP server for Unreal Engine — **249 tools** across **3
 
 | | unreal-mcp | [flopperam](https://github.com/flopperam/unreal-engine-mcp) | [chongdashu](https://github.com/chongdashu/unreal-mcp) | [kvick-games](https://github.com/kvick-games/UnrealMCP) | [ChiR24](https://github.com/ChiR24/Unreal_mcp) |
 |---|---|---|---|---|---|
-| Tools | **249** | ~30 | ~20 | ~5 | 36 |
+| Tools | **258** | ~30 | ~20 | ~5 | 36 |
 | Transports | **4** | 1 | 1 | 1 | 1 |
 | Requires C++ plugin | **No** | Yes | Yes | Yes | Yes |
 | Build/package tools | **Yes** | No | No | No | Partial |
@@ -82,7 +82,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **sequencer** | 9 | Create sequences, add tracks/bindings/keyframes, set playback range |
 | **animation** | 11 | Animation blueprints, montage authoring/read-back, modifiers, skeletal mesh |
 | **niagara** | 11 | Spawn/create/inspect particle systems, set parameters (float/vector/color/bool) |
-| **editor-utils** | 9 | Undo/redo, LOD generation, collision, lightmap UVs, mesh complexity report, utility widgets |
+| **editor-utils** | 14 | Undo/redo, LOD generation, collision, lightmap UVs, static mesh set/info/material-slots/spawn/Nanite, mesh complexity report, utility widgets |
 | **testing** | 8 | Automation tests, map check, data validation, Gauntlet |
 | **profiling** | 5 | CSV profiling, Unreal Insights traces, stat commands |
 | **source-control** | 6 | Status, checkout, checkin, revert, mark for add, diff |
@@ -100,7 +100,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/App
 | **gameplay** | 15 | GAS (ability/effect/attribute set) + game-framework Blueprint presets, project default GameMode |
 | **world** | 7 | World settings, actor replication/net dormancy, landscape material/info |
 | **foliage** | 4 | Register foliage types, scatter/erase instances, foliage stats |
-| **pcg** | 5 | Create/find PCG graphs, spawn PCG volumes, generate, add graph nodes |
+| **pcg** | 9 | Create/find PCG graphs, spawn PCG volumes, generate, add/connect graph nodes, read graph/component info, assign spawner meshes |
 | **control-rig** | 2 | Create Control Rig Blueprints, read preview mesh/class info |
 | **spatial** | 6 | Actor bounds, line trace, overlap test, place-on-ground, distance, spatial context analysis |
 | **performance** | 3 | Render stats, disk-based memory/asset-size report, per-actor render cost profiling |
@@ -148,6 +148,7 @@ Three-layer priority: CLI args > environment variables > config file > defaults.
 | `UNREAL_MCP_PLATFORM` | Win64 | Target platform |
 | `UNREAL_MCP_CONFIGURATION` | Development | Build configuration |
 | `UNREAL_MCP_MODULES` | all | Comma-separated list of modules to enable |
+| `UNREAL_MCP_PLUGIN_SECRET` | — | Optional pre-shared secret for the plugin bridge's `authenticate` handshake (see the Blueprint graph tools section below). No effect unless the C++ plugin also validates it. |
 
 ### CLI Arguments
 
@@ -243,9 +244,27 @@ reach (`build` runs UBT/UAT subprocesses, `plugin` rewrites your `.uproject`'s p
    - Allowed Origins: leave blank or add `127.0.0.1`
    - These take effect immediately, no restart needed
 
+> ⚠️ **Trust boundary — Remote Control API has no authentication of its own.**
+> UE's Remote Control plugin accepts plain HTTP requests with no API key, token, or
+> other credential — this server sends none, because there is nothing on the UE side
+> to validate one against. The only real protection is that this server hardcodes
+> `127.0.0.1` for the Remote Control connection (not configurable via flag or env
+> var), so the exposure is the same "anyone on this machine can reach it" boundary
+> described above for Python Remote Execution, not a network-wide one. Don't expose
+> port 30010 (or any of this server's ports) beyond loopback.
+
 ### Optional (for Blueprint graph tools)
 
 Install the C++ plugin from `plugin/UnrealMCPBridge/` into your project's `Plugins/` directory. This enables `add_graph_node`, `connect_graph_nodes`, and `remove_graph_node`.
+
+Unlike the Remote Control API and Python Remote Execution (both UE-owned protocols with
+no auth surface we can add to), the plugin bridge is this project's *own* protocol — both
+the TypeScript client and the C++ plugin server are ours, which makes a real handshake
+possible. Set `UNREAL_MCP_PLUGIN_SECRET` (or `--plugin-secret <value>`) to a shared secret
+and the client sends it as an `authenticate` command right after connecting, before capability
+negotiation; a mismatched or unsupported secret fails the connection closed rather than
+falling through to an unauthenticated one. This is opt-in and requires matching support on
+the plugin side — leaving it unset changes nothing about the existing zero-config behavior.
 
 ## Roadmap
 
@@ -272,6 +291,7 @@ npm run build      # Compile TypeScript
 npm run lint       # Biome linter
 npm run fmt        # Biome formatter
 npm test           # Run tests
+npm run verify-tools  # Generate every tool's Python and check it with ast.parse (needs python3 on PATH; normal use doesn't)
 ```
 
 ## License

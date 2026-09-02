@@ -46,6 +46,17 @@ export class PluginNotAvailableError extends UnrealMcpError {
 	}
 }
 
+export class PluginAuthenticationError extends UnrealMcpError {
+	constructor(reason: string) {
+		super(
+			`Plugin bridge authentication failed: ${reason}. Check that --plugin-secret / UNREAL_MCP_PLUGIN_SECRET matches the secret configured on the C++ plugin side.`,
+			"PLUGIN_AUTH_FAILED",
+			{ reason },
+		);
+		this.name = "PluginAuthenticationError";
+	}
+}
+
 export class BuildError extends UnrealMcpError {
 	constructor(
 		message: string,
