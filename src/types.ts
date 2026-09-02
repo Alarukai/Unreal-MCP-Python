@@ -6,6 +6,8 @@ export interface UnrealMcpConfig {
 	remoteControlWsPort: number;
 	pythonExecPort: number;
 	pluginBridgePort: number;
+	/** Optional pre-shared secret for the plugin bridge's `authenticate` handshake. Unset by default — the bridge connects unauthenticated, same as before this option existed. Only meaningful once the (separately built) C++ plugin also validates it. */
+	pluginBridgeSecret?: string;
 	/** Bind address for the Python Remote Execution UDP multicast discovery socket. Defaults to 127.0.0.1 (loopback-only). Only widen this if the editor and this server run on different network namespaces on the same host (e.g. WSL) and discovery fails. */
 	multicastBindAddress: string;
 	/** Outbound interface for multicast discovery pings, as an IPv4 address. Only relevant once multicastBindAddress has been widened past loopback — on multi-adapter hosts (Bluetooth PAN, Wi-Fi Direct, VPNs) the OS can pick a link-local adapter the editor never sees. Auto-detected if unset. */

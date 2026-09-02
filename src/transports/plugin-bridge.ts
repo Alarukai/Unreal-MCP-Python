@@ -1,12 +1,24 @@
 import { randomUUID } from "node:crypto";
 import { type Socket, createConnection } from "node:net";
 import type { PluginBridgeCommand, PluginBridgeResponse, PluginCapabilities } from "../types.js";
-import { PluginNotAvailableError, TimeoutError, UnrealMcpError } from "../utils/errors.js";
+import {
+	PluginAuthenticationError,
+	PluginNotAvailableError,
+	TimeoutError,
+	UnrealMcpError,
+} from "../utils/errors.js";
 
 export interface PluginBridgeConfig {
 	host: string;
 	port: number;
 	timeout: number;
+	/** Optional pre-shared secret sent as an `authenticate` command right after
+	 * connecting, before capability negotiation. Unset by default (no behavior
+	 * change for the zero-config path) — the plugin bridge is our own protocol,
+	 * the one transport where both ends are under our control, so this is the
+	 * only place a real auth handshake (rather than trust-the-loopback-bind) is
+	 * honestly possible. Requires matching support on the C++ plugin side. */
+	secret?: string;
 }
 
 /**
@@ -27,6 +39,7 @@ export class PluginBridgeClient {
 	private host: string;
 	private port: number;
 	private timeout: number;
+	private secret?: string;
 	private _available = false;
 	private _capabilities: PluginCapabilities | null = null;
 	private socket: Socket | null = null;
@@ -44,6 +57,7 @@ export class PluginBridgeClient {
 		this.host = config.host;
 		this.port = config.port;
 		this.timeout = config.timeout;
+		this.secret = config.secret;
 	}
 
 	get available(): boolean {
@@ -110,8 +124,34 @@ export class PluginBridgeClient {
 			socket.on("close", () => this.handleDisconnect());
 		});
 
+		// Authenticate before capability negotiation if a secret is configured.
+		// A thrown PluginAuthenticationError here propagates out of
+		// ensureConnected() — isAvailable() catches it like any other connection
+		// failure (the bridge just reads as "not connected"), and sendCommand()
+		// does not retry it (only PLUGIN_CONNECTION_FAILED retries). Fail closed:
+		// once a secret is configured, an unauthenticated connection is never used.
+		if (this.secret) {
+			await this.authenticate();
+		}
+
 		// Negotiate capabilities after connecting
 		await this.negotiateCapabilities();
+	}
+
+	private async authenticate(): Promise<void> {
+		let response: PluginBridgeResponse;
+		try {
+			response = await this.sendCommandInternal({
+				id: randomUUID(),
+				command: "authenticate",
+				params: { secret: this.secret },
+			});
+		} catch (error) {
+			throw new PluginAuthenticationError(error instanceof Error ? error.message : String(error));
+		}
+		if (!response.success) {
+			throw new PluginAuthenticationError(response.error || "secret rejected by the plugin");
+		}
 	}
 
 	private handleData(data: Buffer): void {

@@ -45,6 +45,7 @@ export class ConnectionManager {
 			host: "127.0.0.1",
 			port: config.pluginBridgePort,
 			timeout: config.timeouts.remoteControl,
+			secret: config.pluginBridgeSecret,
 		});
 
 		this.subprocess = new SubprocessRunner({
